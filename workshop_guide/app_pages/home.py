@@ -4,6 +4,7 @@ import streamlit as st
 
 from components import render_real_world_examples, render_references
 from content import links as L
+from content import story
 
 _STATIC = Path(__file__).parent.parent / "static"
 
@@ -22,19 +23,16 @@ c3.metric("Faults to find", "6", help="One per operator, round-robin")
 c4.metric("Bonus labs", "3", help="Budgets, governance + GDPR, DCM DevOps")
 
 st.space("medium")
+st.markdown("#### :material/groups: Who's in this story")
+story.cast()
 st.markdown("#### :material/report: The problem")
-with st.container(border=True):
-    st.markdown("""
-Nova went live on 28 September. A leisure operator rings Customer Success:
-
-> *"Nova's **active members** and **last week's revenue** don't match what our front desk sees."*
-
-The answer came from a Cortex Agent, reading a semantic view, reading REPORTING Dynamic Tables, built from
-Bronze tables that Bifrost merges in from the operator's Azure SQL. Something upstream broke - a replayed merge batch,
-a stalled sync task, refunds with the wrong sign, another operator's rows, or two definitions of "active member".
-
-Today Gladstone finds out from the customer, one operator at a time, across hundreds of operator databases.
-""")
+with st.chat_message("Sam", avatar=":material/storefront:"):
+    st.markdown("**Sam, a leisure operator on Nova:** *\"Nova's active members and last week's revenue don't match "
+                "what our front desk sees.\"*")
+st.markdown("Nova's answer came from a semantic view, reading REPORTING Dynamic Tables, built from Bronze tables that "
+            "Bifrost merges in from the operator's Azure SQL. Today Gladstone finds out from the customer, one operator "
+            "at a time, across hundreds of operator databases:")
+story.timelines()
 
 st.markdown("#### :material/route: What, how and why")
 w, h, y = st.columns(3)

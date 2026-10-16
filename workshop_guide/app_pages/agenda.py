@@ -2,8 +2,10 @@ import streamlit as st
 
 from components import render_real_world_examples, render_references
 from content import links as L
+from content import story
 
 st.title("Agenda")
+story.story_arc(0)
 st.markdown("30 minutes, one operator each. The facilitator injects the faults between Session 2 and Session 3.")
 
 st.markdown("""

@@ -22,6 +22,7 @@
 
 ## Things to know
 
+- **The story.** Three characters run through every page: **Sam**, operations manager at your operator; **Priya**, Gladstone's Customer Success lead; and **you**, the on-call data engineer. Each session is a chapter (Meet the pipeline, Monitor, Diagnose, Contain, Fleet) and opens with what just happened and your mission.
 - **You get your own operator.** Your schema `CUST_<NAME>` stands in for one operator's own database. You own everything in it, and you can't see anyone else's - the same isolation Gladstone has between operators.
 - **The data is synthetic.** Members, bookings, payments and check-ins are generated for the lab. No real member data is used.
 - **Gladstone's names.** Bronze tables use the Bifrost layout (`MEMBERS__*`, `SHARED__*`, `SYSTEM__*`, `_SYNC_META__*`); Silver is `REPORTING__*` Dynamic Tables; Gold is a semantic view that the Nova agent answers from.

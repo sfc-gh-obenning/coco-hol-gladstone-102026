@@ -4,10 +4,12 @@ from components import (render_checkpoint, render_execution_context, render_expl
                         render_prompt, render_real_world_examples, render_references, render_session_header,
                         render_snowsight_route, render_technologies_used, render_what_why)
 from content import links as L
+from content import story
 
 render_session_header("Session 3", "Diagnose a broken answer", "9 min", "A root-cause investigation, start to finish, from one prompt")
 render_execution_context()
-st.warning("The facilitator has injected **one fault** into your operator. You don't know which one. Wait about 5 minutes after injection for the scheduled checks to run, or ask CoCo to evaluate them now.", title="Your operator is broken")
+story.chapter(3)
+story.ticket("s3")
 render_what_why(
     "Give CoCo the complaint the way an operator would phrase it. Let it find which check failed, which rows and batch caused it, and whether the pipeline itself is healthy.",
     "This is the Customer Success escalation Gladstone handles today by hand. CoCo's data-quality skill follows the same evidence trail an engineer would, in minutes, and shows its working.",
@@ -36,6 +38,7 @@ render_snowsight_route([
   METRICS am.active_members, ms.paid_members_35d);""")
 
 render_checkpoint("You can state your fault in one sentence (which check, which batch, which Nova metric). Compare with your neighbour - each of you got a different fault.")
+story.turn(3)
 render_explanation("What each fault looks like", """
 | If CoCo finds... | It's the... | Notice |
 |---|---|---|

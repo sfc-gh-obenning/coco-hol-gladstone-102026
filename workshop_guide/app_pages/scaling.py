@@ -27,7 +27,7 @@ st.markdown("""
 4. **Schedule to match the data.** `TRIGGER_ON_CHANGES` on Bronze tables Bifrost writes to; align REPORTING checks to the Dynamic Table target lag. Avoid `5 MINUTE` everywhere - it's for the lab.
 5. **One results store.** `SNOWFLAKE.LOCAL` results are account-wide - one fleet view covers every operator in the account; filter on `table_database LIKE 'CUST_%'`. Snowflake's DQ dashboard shows the same incidents in Snowsight.
 6. **Tiered alerting.** Notifications are per database: enable once per operator database (scripted), then keep only critical checks notifying. Route by tier (enterprise operators to on-call, others to a daily digest).
-7. **Contain, don't just detect.** A circuit breaker per operator (Session 4) keeps Nova on the last good state during a bad sync.
+7. **Contain, don't just detect.** A circuit breaker per operator (Session 4) pauses REPORTING during a bad sync. Run Bronze checks `TRIGGER_ON_CHANGES` and refresh REPORTING only when they pass, so a bad batch never publishes.
 8. **Watch the semantic layer.** Compare each headline metric with its verified query on a schedule; alert when the gap moves (Session 3).
 9. **Cost is predictable.** DMFs are serverless; track them per operator with `DATA_QUALITY_MONITORING_USAGE_HISTORY` (filter by database) and a tag-based budget (Bonus B1).
 10. **Governance by tag.** Classification + tag-based masking + row access by operator work identically in every operator database (Bonus B2).

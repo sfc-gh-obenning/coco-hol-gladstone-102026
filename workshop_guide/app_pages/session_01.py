@@ -4,9 +4,11 @@ from components import (fill, render_checkpoint, render_execution_context, rende
                         render_fallback, render_prompt, render_real_world_examples, render_references,
                         render_session_header, render_snowsight_route, render_technologies_used, render_what_why)
 from content import links as L
+from content import story
 
 render_session_header("Session 1", "Meet your operator pipeline", "4 min", "Your mental model of one operator's Nova pipeline")
 render_execution_context()
+story.chapter(1)
 render_what_why(
     "Ask CoCo to explain your operator's pipeline end to end, then ask Nova's semantic view the two questions operators ask most.",
     "You cannot monitor what you cannot see. Gladstone runs one database per operator, so every investigation starts by mapping that operator's Bronze, REPORTING and Gold objects.",
@@ -40,6 +42,7 @@ render_snowsight_route([
   METRICS am.active_members, ms.paid_members_35d);""")
 
 render_checkpoint("You can name the 4 layers and you have seen **two different numbers for active members** (status-based vs paid in the last 35 days). Note them - they matter in Session 3.")
+story.turn(1)
 render_explanation("Why two answers?", """
 `am.active_members` counts members whose **source status** is `ACTIVE`. The verified query (`vq_active_members`) uses the
 **finance definition** - members who **paid in the last 35 days**. About 6% of ACTIVE members haven't paid in more than

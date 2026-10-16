@@ -4,9 +4,11 @@ from components import (render_checkpoint, render_execution_context, render_expl
                         render_key_concepts, render_prompt, render_real_world_examples, render_references,
                         render_session_header, render_snowsight_route, render_technologies_used, render_what_why)
 from content import links as L
+from content import story
 
 render_session_header("Session 2", "Put monitors on it", "7 min", "Data metric functions and expectations on Bronze and REPORTING")
 render_execution_context()
+story.chapter(2)
 render_what_why(
     "Attach Snowflake data metric functions (DMFs) to your Bronze tables and a REPORTING Dynamic Table, and turn each invariant into an **expectation** that passes or fails.",
     "These run serverless inside Snowflake, next to the data, on a schedule - no extra warehouse, no external tool. Defined once, the same checks attach to every operator database.",
@@ -44,6 +46,7 @@ SELECT * FROM TABLE(SYSTEM$EVALUATE_DATA_QUALITY_EXPECTATIONS(
   REF_ENTITY_NAME => '{FQ_SCHEMA}.SYSTEM__PAYMENT'));""")
 
 render_checkpoint("All **7 expectations pass** on clean data. FRESHNESS should be under 180 seconds because the merge task runs every minute. Tell the facilitator you're ready - faults go in next.")
+story.turn(2)
 render_explanation("Why expectations, and not only anomaly detection?", """
 **Anomaly detection** (on ROW_COUNT and FRESHNESS) learns normal behaviour and needs **at least two weeks** of history before it
 flags anything - during this lab it shows `TRAINING_IN_PROGRESS`. Turn it on now so it's working in two weeks.

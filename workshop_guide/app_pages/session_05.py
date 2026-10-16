@@ -4,9 +4,11 @@ from components import (render_checkpoint, render_execution_context, render_expl
                         render_prompt, render_real_world_examples, render_references, render_session_header,
                         render_snowsight_route, render_technologies_used, render_what_why)
 from content import links as L
+from content import story
 
 render_session_header("Session 5", "Fleet view across operators", "4 min", "One view of every operator's data quality")
 render_execution_context()
+story.chapter(5)
 render_what_why(
     "Look across every operator in the room at once: which are failing, which check, since when.",
     "Gladstone has hundreds of operator databases. Nobody can open each one. The same results that power your operator's checks roll up into one fleet view - the start of a Gladstone-wide data quality SLA.",
@@ -26,6 +28,8 @@ render_prompt("Prompt 5.2", "Design the production rollout", """We run one Snowf
 Keep it to one page.""")
 
 render_checkpoint("You can see **six different failure signatures** across the room (if six or more operators). Your operator should now show 0 failing checks.")
+story.turn(5)
+story.epilogue()
 render_explanation("How the fleet view works", """
 `V_FLEET_DQ_HEALTH` reads `SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_EXPECTATION_STATUS`, keeps the latest result per
 operator, table and expectation, and counts the failures. It's owned by the lab admin, so you can read the summary but not

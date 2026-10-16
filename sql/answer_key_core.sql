@@ -104,7 +104,7 @@ BEGIN
     ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_NIELS.REPORTING__ACTIVE_MEMBERS SUSPEND;
     ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_NIELS.REPORTING__DAILY_REVENUE SUSPEND;
     -- SYSTEM$SET_RETURN_VALUE needs a plain variable or literal, not an expression
-    msg := 'OPEN: ' || :bad || ' failing Bronze check(s) - REPORTING frozen at last good state';
+    msg := 'OPEN: ' || :bad || ' failing Bronze check(s) - REPORTING refresh paused';
     CALL SYSTEM$SET_RETURN_VALUE(:msg);
     RETURN 'OPEN';
   ELSE

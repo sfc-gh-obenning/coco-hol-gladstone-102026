@@ -4,12 +4,14 @@ from components import (render_checkpoint, render_execution_context, render_expl
                         render_prompt, render_real_world_examples, render_references, render_session_header,
                         render_snowsight_route, render_technologies_used, render_what_why, render_what_you_built)
 from content import links as L
+from content import story
 
 render_session_header("Session 4", "Contain and alert", "6 min", "A circuit breaker task and a notification on the critical check")
 render_execution_context()
+story.chapter(4)
 render_what_why(
     "Stop bad Bronze data reaching Nova: a task that freezes the REPORTING Dynamic Tables while any Bronze expectation fails, and resumes them when it's clean. Then decide which checks should email you.",
-    "Detection alone still lets Nova serve a wrong number. Freezing REPORTING keeps Nova on the last good state - stale beats wrong. Notifications on only the critical checks avoid alert fatigue across hundreds of operators.",
+    "Detection alone still lets Nova serve a wrong number. Pausing REPORTING stops further bad batches reaching Nova - stale beats wrong. (With 5-minute checks and 1-minute REPORTING, the first bad batch can already be in; checks triggered on change close that gap.) Notifications on only the critical checks avoid alert fatigue across hundreds of operators.",
 )
 
 render_prompt("Prompt 4.1", "Build a circuit breaker", """In {FQ_SCHEMA}, create a task TSK_DQ_CIRCUIT_BREAKER on warehouse DQ_LAB_WH that runs every minute and:
@@ -37,6 +39,7 @@ render_snowsight_route([
 render_checkpoint("Breaker run history shows **OPEN** then **CLOSED: Bronze clean**, and `REPORTING__*` are active again.", sql="""SELECT state, return_value, completed_time
 FROM TABLE({DB}.INFORMATION_SCHEMA.TASK_HISTORY(TASK_NAME => 'TSK_DQ_CIRCUIT_BREAKER', RESULT_LIMIT => 5))
 WHERE state <> 'SCHEDULED' ORDER BY completed_time DESC;""")
+story.turn(4)
 render_explanation("Fixes by fault", """
 | Fault | Fix |
 |---|---|
@@ -87,7 +90,7 @@ ALTER TABLE SYSTEM__PAYMENT MODIFY DATA METRIC FUNCTION SNOWFLAKE.CORE.FRESHNESS
 
 render_technologies_used([
     {"name": "Tasks", "icon": "schedule", "description": "Serverful task with a Snowflake Scripting body and a return value"},
-    {"name": "Dynamic Table suspend / resume", "icon": "pause_circle", "description": "Freeze REPORTING at its last good state"},
+    {"name": "Dynamic Table suspend / resume", "icon": "pause_circle", "description": "Pause REPORTING while Bronze is failing"},
     {"name": "DQ notifications", "icon": "notifications", "description": "Database-level setting, per-check toggle, email or webhook"},
 ])
 render_what_you_built([

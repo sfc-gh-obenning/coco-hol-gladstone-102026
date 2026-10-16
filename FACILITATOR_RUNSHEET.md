@@ -95,3 +95,17 @@ Fault by setup order (repeats every six attendees): 1 Bifrost replay, 2 merge ta
 - Circuit breaker suspended 2 REPORTING DTs, then returned "CLOSED: Bronze clean" after the fix.
 - B1 budget + tag + linked resource; B2 masking, row access, SAR, erasure, erasure DMF = 0, Time Travel lesson, B2 teardown;
   B3 DCM create / plan / deploy / test 5/5, re-plan of 2 ALTERs, test exits 1 on a failed expectation.
+
+## Say this (story script)
+
+Cast: **Sam** (operator ops manager), **Priya** (Gladstone Customer Success), **you** (on-call data engineer). Read the line, then let the room work. Same words as the chapter cards in the guide.
+
+| When | Say |
+|---|---|
+| Minute 0 (opener, 60 s) | "It's Tuesday at Gladstone. Each of you is on call for one operator on Nova. In 30 minutes, something will break in every one of them - and you'll find out before the operator does." |
+| Start of chapter 1: Meet the pipeline | "First, learn the pipeline you're on call for, and what its numbers say on a good day." |
+| Start of chapter 2: Monitor | "Nothing is broken yet. Put monitors on your operator now." |
+| Start of chapter 3: Diagnose | "I've just broken something in every operator - a different thing for each of you. Your operator is on the phone. Find out what happened." |
+| Start of chapter 4: Contain | "Now stop it spreading, and make sure the next one emails you instead of the operator calling." |
+| Start of chapter 5: Fleet | "Priya's stand-up: which operators do we call first? Let's look at all of you at once." |
+| Close | Read the epilogue on the last session page aloud. |
