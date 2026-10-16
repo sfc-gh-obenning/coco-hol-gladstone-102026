@@ -102,7 +102,7 @@ Cast: **Sam** (operator ops manager), **Priya** (Gladstone Customer Success), **
 
 | When | Say |
 |---|---|
-| Minute 0 (opener, 60 s) | "It's Tuesday at Gladstone. Each of you is on call for one operator on Nova. In 30 minutes, something will break in every one of them - and you'll find out before the operator does." |
+| Minute 0 (opener, 60 s) | "It's Monday at Gladstone. Each of you is on call for one operator on Nova. In 30 minutes, something will break in every one of them - and you'll find out before the operator does." |
 | Start of chapter 1: Meet the pipeline | "First, learn the pipeline you're on call for, and what its numbers say on a good day." |
 | Start of chapter 2: Monitor | "Nothing is broken yet. Put monitors on your operator now." |
 | Start of chapter 3: Diagnose | "I've just broken something in every operator - a different thing for each of you. Your operator is on the phone. Find out what happened." |

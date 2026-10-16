@@ -15,7 +15,7 @@ CAST = [
 ]
 
 CHAPTERS = {
-    1: {"previously": "It's Tuesday. Every attendee is on call for a different operator, each in its own database.",
+    1: {"previously": "It's Monday. Every attendee is on call for a different operator, each in its own database.",
         "who": "Priya", "quote": "Before the phones start - do you actually know how your operator's Nova numbers are built?",
         "scene": "Nothing is wrong yet. You have five minutes to learn the pipeline you're on call for.",
         "mission": "Map Bronze, REPORTING and the semantic view, and note Nova's two KPIs on a good day."},
@@ -85,7 +85,7 @@ EPILOGUE = ("**Epilogue.** By Priya's stand-up every operator in the room is gre
             "see *Scaling to every operator* and Bonus B3.")
 
 SAY_THIS = {
-    0: "It's Tuesday at Gladstone. Each of you is on call for one operator on Nova. In 30 minutes, something will break in every one of them - and you'll find out before the operator does.",
+    0: "It's Monday at Gladstone. Each of you is on call for one operator on Nova. In 30 minutes, something will break in every one of them - and you'll find out before the operator does.",
     1: "First, learn the pipeline you're on call for, and what its numbers say on a good day.",
     2: "Nothing is broken yet. Put monitors on your operator now.",
     3: "I've just broken something in every operator - a different thing for each of you. Your operator is on the phone. Find out what happened.",
@@ -152,8 +152,8 @@ def cast():
 
 def timelines():
     left, right = st.columns(2)
-    for col, key, title, icon in [(left, "without", "A Tuesday without monitors", ":material/sentiment_dissatisfied:"),
-                                  (right, "with", "The same Tuesday with monitors", ":material/verified_user:")]:
+    for col, key, title, icon in [(left, "without", "A Monday without monitors", ":material/sentiment_dissatisfied:"),
+                                  (right, "with", "The same Monday with monitors", ":material/verified_user:")]:
         with col.container(border=True, height="stretch"):
             st.markdown(f"##### {icon} {title}")
             for when, what in TIMELINES[key]:
