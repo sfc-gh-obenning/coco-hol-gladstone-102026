@@ -1,0 +1,29 @@
+# Gladstone MRM | Bonus B3 - one operator pipeline (+ its data quality) as code
+# One target per operator: onboarding operator N = add a target, run plan, run deploy.
+manifest_version: 2
+type: DCM_PROJECT
+default_target: 'NIELS'
+
+targets:
+  NIELS:
+    project_name: 'GLADSTONE_DQ_LAB.CUST_NIELS_DCM.OPERATOR_PIPELINE'
+    project_owner: DQ_LAB_NIELS
+    templating_config: 'NIELS'
+  TEST1:
+    project_name: 'GLADSTONE_DQ_LAB.CUST_TEST1_DCM.OPERATOR_PIPELINE'
+    project_owner: DQ_LAB_TEST1
+    templating_config: 'TEST1'
+
+templating:
+  defaults:
+    db: 'GLADSTONE_DQ_LAB'
+    wh: 'DQ_LAB_WH'
+    dq_schedule: '5 MINUTE'          # production: TRIGGER_ON_CHANGES on Bronze
+    reporting_lag: '1 minute'
+  configurations:
+    NIELS:
+      schema: 'CUST_NIELS_DCM'
+      operator_id: 'CUST_NIELS'
+    TEST1:
+      schema: 'CUST_TEST1_DCM'
+      operator_id: 'CUST_TEST1'

@@ -1,0 +1,570 @@
+-- =============================================================================
+-- Gladstone MRM | Data Quality HOL | 02_lab_procs.sql
+-- Facilitator procedures + fleet views. Run after 01_build_template.sql.
+--
+--   ADMIN.BIFROST_MERGE(schema)          simulated Bifrost merge batch (called by each operator's task)
+--   ADMIN.SETUP_ATTENDEE(user, name [, set_defaults])  role DQ_LAB_<NAME> + zero-copy clone CUST_<NAME> + task/DTs/semantic view
+--   ADMIN.SETUP_ALL(variant)             loop: [{"user":"NJOHANSEN","name":"NIELS"[,"set_defaults":false]}, ...]
+--   ADMIN.SETUP_SPARES(n)                pre-build n unassigned operators CUST_SPARE01.. for walk-ins
+--   ADMIN.CLAIM_SPARE(user [, set_defaults])  give a walk-in the next free spare (~1s); builds a new one if none left
+--   ADMIN.RESTORE_USER_DEFAULTS()        put back each attendee's original default role/warehouse (teardown)
+--   ADMIN.V_ROSTER                       who is set up, spare or claimed, and last login
+--   ADMIN.INJECT_FAULTS('ALL'|schema)    one fault per operator, round-robin
+--   ADMIN.RESET_ATTENDEE(name)           re-clone one operator (fresh start)
+--   ADMIN.SUSPEND_ALL()                  stop all lab compute (run before teardown)
+--   ADMIN.V_FLEET_DQ_HEALTH              latest DQ state per operator  (shown in Session 5)
+--   ADMIN.V_FLEET_ANSWER_KEY             which fault each operator got (facilitator only)
+--
+-- Run SETUP_* as ACCOUNTADMIN (they create roles and alter users).
+-- Run INJECT_FAULTS / RESET / SUSPEND as DQ_LAB_ADMIN or ACCOUNTADMIN.
+-- =============================================================================
+USE ROLE DQ_LAB_ADMIN;
+USE WAREHOUSE DQ_LAB_WH;
+USE SCHEMA GLADSTONE_DQ_LAB.ADMIN;
+
+CREATE TABLE IF NOT EXISTS ATTENDEES (
+  short_name   VARCHAR,
+  user_name    VARCHAR,
+  schema_name  VARCHAR,
+  role_name    VARCHAR,
+  fault_slot   NUMBER,
+  created_at   TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+  is_spare     BOOLEAN DEFAULT FALSE,       -- pre-built walk-in slot (SETUP_SPARES)
+  defaults_set BOOLEAN DEFAULT FALSE,       -- we changed the user's DEFAULT_ROLE / WAREHOUSE
+  prev_default_role VARCHAR,                -- restored by RESTORE_USER_DEFAULTS at teardown
+  prev_default_wh   VARCHAR
+);
+
+CREATE TABLE IF NOT EXISTS SPARE_CLAIMS (
+  short_name  VARCHAR,
+  user_name   VARCHAR,
+  claimed_by  VARCHAR DEFAULT CURRENT_USER(),
+  claimed_at  TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
+);
+
+CREATE TABLE IF NOT EXISTS FAULT_LOG (
+  schema_name  VARCHAR,
+  fault_code   VARCHAR,
+  description  VARCHAR,
+  expected_detection VARCHAR,
+  injected_at  TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
+);
+
+-- ---------------------------------------------------------------------------
+-- Simulated Bifrost merge batch: every minute a few payments, bookings and check-ins arrive.
+-- EXECUTE AS CALLER -> runs with the privileges of the operator's task owner (DQ_LAB_<NAME>).
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE BIFROST_MERGE(SCHEMA_NAME VARCHAR)
+RETURNS VARCHAR
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+$$
+DECLARE
+  b   VARCHAR DEFAULT 'B-' || TO_CHAR(CURRENT_TIMESTAMP(), 'YYYYMMDDHH24MISSFF3');
+  fq  VARCHAR DEFAULT 'GLADSTONE_DQ_LAB.' || :SCHEMA_NAME;
+BEGIN
+  EXECUTE IMMEDIATE 'INSERT INTO ' || :fq || '.SYSTEM__PAYMENT
+     SELECT ''PY-' || :b || '-'' || SEQ4(), ''' || :SCHEMA_NAME || ''',
+            ''M-'' || LPAD((1000 + UNIFORM(0, 1999, RANDOM()))::VARCHAR, 5, ''0''),
+            CURRENT_DATE(), 34.99, ''PAYMENT'', ''' || :b || ''', CURRENT_TIMESTAMP()
+     FROM TABLE(GENERATOR(ROWCOUNT => 15))';
+  EXECUTE IMMEDIATE 'INSERT INTO ' || :fq || '.SYSTEM__BOOKING
+     SELECT ''BK-' || :b || '-'' || SEQ4(), ''' || :SCHEMA_NAME || ''',
+            ''A'' || LPAD(UNIFORM(0, 599, RANDOM())::VARCHAR, 5, ''0''),
+            ''M-'' || LPAD((1000 + UNIFORM(0, 1999, RANDOM()))::VARCHAR, 5, ''0''),
+            CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP()
+     FROM TABLE(GENERATOR(ROWCOUNT => 10))';
+  EXECUTE IMMEDIATE 'INSERT INTO ' || :fq || '.SYSTEM__ATTENDANCE
+     SELECT ''AT-'' || SUBSTR(booking_id, 4), operator_id, booking_id, member_id,
+            DATEADD(minute, 5, booked_at), CURRENT_TIMESTAMP()
+     FROM ' || :fq || '.SYSTEM__BOOKING WHERE booking_id LIKE ''BK-' || :b || '-%''';
+  EXECUTE IMMEDIATE 'INSERT INTO ' || :fq || '._SYNC_META__MERGE_BATCH
+     SELECT ''' || :b || ''', ''' || :SCHEMA_NAME || ''', column1, column2, CURRENT_TIMESTAMP()
+     FROM VALUES (''SYSTEM__PAYMENT'', 15), (''SYSTEM__BOOKING'', 10)';
+  RETURN :b;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Bind a Snowflake user to an operator role. Records the user's previous defaults
+-- so teardown can put them back. SET_DEFAULTS = FALSE leaves defaults alone
+-- (use when SCIM manages users; attendees then run USE ROLE themselves).
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE BIND_USER(USER_NAME VARCHAR, SHORT_NAME VARCHAR, SET_DEFAULTS BOOLEAN)
+RETURNS VARCHAR
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+$$
+DECLARE
+  u   VARCHAR DEFAULT REPLACE(REPLACE(:USER_NAME, '"', ''), '''', '');
+  nm  VARCHAR DEFAULT UPPER(:SHORT_NAME);
+  rl  VARCHAR DEFAULT 'DQ_LAB_' || UPPER(:SHORT_NAME);
+  cnt NUMBER;
+  pr  VARCHAR;
+  pw  VARCHAR;
+BEGIN
+  EXECUTE IMMEDIATE 'SHOW USERS LIKE ''' || :u || '''';
+  SELECT COUNT(*), MAX("name"), MAX("default_role"), MAX("default_warehouse") INTO :cnt, :u, :pr, :pw
+    FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
+   WHERE UPPER("name") = UPPER(:u);
+  IF (:cnt = 0) THEN
+    RETURN 'ERROR: user ' || :USER_NAME || ' not found. Check the exact user name (SHOW USERS).';
+  END IF;
+  EXECUTE IMMEDIATE 'GRANT ROLE ' || :rl || ' TO USER "' || :u || '"';
+  IF (:SET_DEFAULTS) THEN
+    EXECUTE IMMEDIATE 'ALTER USER "' || :u || '" SET DEFAULT_ROLE = ' || :rl || ' DEFAULT_WAREHOUSE = DQ_LAB_WH';
+  END IF;
+  UPDATE GLADSTONE_DQ_LAB.ADMIN.ATTENDEES
+     SET user_name = :u, defaults_set = :SET_DEFAULTS,
+         prev_default_role = IFF(:SET_DEFAULTS, NULLIF(:pr, ''), NULL),
+         prev_default_wh   = IFF(:SET_DEFAULTS, NULLIF(:pw, ''), NULL)
+   WHERE short_name = :nm;
+  RETURN 'OK';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- One attendee = one operator database (simulated as schema CUST_<NAME>).
+-- ---------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS SETUP_ATTENDEE(VARCHAR, VARCHAR);   -- older 2-arg version (avoids ambiguous calls)
+CREATE OR REPLACE PROCEDURE SETUP_ATTENDEE(USER_NAME VARCHAR, SHORT_NAME VARCHAR, SET_DEFAULTS BOOLEAN DEFAULT TRUE)
+RETURNS VARCHAR
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+$$
+DECLARE
+  nm   VARCHAR DEFAULT UPPER(REGEXP_REPLACE(:SHORT_NAME, '[^A-Za-z0-9_]', ''));
+  sch  VARCHAR;
+  fq   VARCHAR;
+  rl   VARCHAR;
+  slot NUMBER;
+  res  VARCHAR DEFAULT 'OK';
+  tbls ARRAY DEFAULT ARRAY_CONSTRUCT('SHARED__SITE','SHARED__ACTIVITY','MEMBERS__MEMBER','MEMBERS__MEMBERSHIP',
+                                     'SYSTEM__BOOKING','SYSTEM__ATTENDANCE','SYSTEM__PAYMENT','_SYNC_META__MERGE_BATCH');
+BEGIN
+  sch := 'CUST_' || :nm;
+  fq  := 'GLADSTONE_DQ_LAB.' || :sch;
+  rl  := 'DQ_LAB_' || :nm;
+
+  -- 1. Role
+  EXECUTE IMMEDIATE 'CREATE ROLE IF NOT EXISTS ' || :rl || ' COMMENT = ''Gladstone DQ HOL operator ' || :sch || '''';
+  EXECUTE IMMEDIATE 'GRANT ROLE DQ_LAB_ATTENDEE TO ROLE ' || :rl;
+  EXECUTE IMMEDIATE 'GRANT ROLE ' || :rl || ' TO ROLE DQ_LAB_ADMIN';
+  -- (user is bound in step 8, after the operator is registered)
+
+  -- 2. Zero-copy clone of the seed tables (seconds, no extra storage until data changes)
+  EXECUTE IMMEDIATE 'CREATE OR REPLACE SCHEMA ' || :fq || ' CLONE GLADSTONE_DQ_LAB.ADMIN_OPERATOR_TEMPLATE
+                     COMMENT = ''Operator database for ' || :sch || ' (simulated)''';
+  FOR i IN 0 TO ARRAY_SIZE(:tbls) - 1 DO
+    EXECUTE IMMEDIATE 'UPDATE ' || :fq || '.' || GET(:tbls, :i)::VARCHAR || ' SET operator_id = ''' || :sch || '''';
+  END FOR;
+
+  -- 3. Silver REPORTING dynamic tables (incremental; no CURRENT_TIMESTAMP in definitions)
+  EXECUTE IMMEDIATE 'CREATE OR REPLACE DYNAMIC TABLE ' || :fq || '.REPORTING__ACTIVE_MEMBERS
+      TARGET_LAG = ''1 minute'' WAREHOUSE = DQ_LAB_WH REFRESH_MODE = INCREMENTAL
+      COMMENT = ''Silver REPORTING: active members by site (status-based definition)''
+    AS SELECT operator_id, home_site_id AS site_id,
+              COUNT(*)                     AS member_rows,
+              COUNT_IF(status = ''ACTIVE'') AS active_members,
+              MAX(_loaded_at)              AS last_loaded_at
+       FROM ' || :fq || '.MEMBERS__MEMBER
+       GROUP BY operator_id, home_site_id';
+
+  EXECUTE IMMEDIATE 'CREATE OR REPLACE DYNAMIC TABLE ' || :fq || '.REPORTING__DAILY_REVENUE
+      TARGET_LAG = ''1 minute'' WAREHOUSE = DQ_LAB_WH REFRESH_MODE = INCREMENTAL
+      COMMENT = ''Silver REPORTING: net revenue per day''
+    AS SELECT operator_id, payment_date,
+              SUM(IFF(payment_type = ''REFUND'', -amount, amount)) AS net_revenue,
+              COUNT_IF(payment_type = ''REFUND'')                   AS refunds,
+              COUNT(*)                                              AS transactions,
+              MAX(_loaded_at)                                       AS last_loaded_at
+       FROM ' || :fq || '.SYSTEM__PAYMENT
+       GROUP BY operator_id, payment_date';
+
+  EXECUTE IMMEDIATE 'CREATE OR REPLACE DYNAMIC TABLE ' || :fq || '.REPORTING__CLASS_UTILISATION
+      TARGET_LAG = ''1 minute'' WAREHOUSE = DQ_LAB_WH REFRESH_MODE = INCREMENTAL
+      COMMENT = ''Silver REPORTING: class bookings, attendance and capacity''
+    AS SELECT a.operator_id, a.site_id, a.activity_id, a.class_name, a.class_date, a.capacity,
+              COUNT(b.booking_id)    AS bookings,
+              COUNT(t.attendance_id) AS attended,
+              MAX(b._loaded_at)      AS last_loaded_at
+       FROM ' || :fq || '.SHARED__ACTIVITY a
+       JOIN ' || :fq || '.SYSTEM__BOOKING b ON b.activity_id = a.activity_id
+       LEFT JOIN ' || :fq || '.SYSTEM__ATTENDANCE t ON t.booking_id = b.booking_id
+       GROUP BY a.operator_id, a.site_id, a.activity_id, a.class_name, a.class_date, a.capacity';
+
+  -- 4. Gold: semantic view Nova answers from. Two definitions of "active member" on purpose.
+  EXECUTE IMMEDIATE 'CREATE OR REPLACE SEMANTIC VIEW ' || :fq || '.SV_OPERATOR_KPIS
+    TABLES (
+      am   AS ' || :fq || '.REPORTING__ACTIVE_MEMBERS   PRIMARY KEY (site_id),
+      rev  AS ' || :fq || '.REPORTING__DAILY_REVENUE    PRIMARY KEY (payment_date),
+      util AS ' || :fq || '.REPORTING__CLASS_UTILISATION PRIMARY KEY (activity_id),
+      ms   AS ' || :fq || '.MEMBERS__MEMBERSHIP         PRIMARY KEY (membership_id)
+    )
+    DIMENSIONS (
+      am.site_id        AS am.site_id        COMMENT = ''Site'',
+      rev.payment_date  AS rev.payment_date  COMMENT = ''Payment date'',
+      util.class_date   AS util.class_date   COMMENT = ''Class date'',
+      util.class_name   AS util.class_name   COMMENT = ''Class type'',
+      util.class_site   AS util.site_id      COMMENT = ''Site of the class'',
+      ms.plan_name      AS ms.plan_name      COMMENT = ''Membership plan''
+    )
+    METRICS (
+      am.active_members      AS SUM(am.active_members)
+        WITH SYNONYMS = (''members'', ''active members'') COMMENT = ''Members whose source status is ACTIVE'',
+      ms.paid_members_35d    AS COUNT_IF(ms.last_paid_on >= DATEADD(day, -35, CURRENT_DATE()))
+        COMMENT = ''Members who paid in the last 35 days (finance definition of active)'',
+      rev.net_revenue        AS SUM(rev.net_revenue)  COMMENT = ''Payments minus refunds, GBP'',
+      util.utilisation_pct   AS DIV0(SUM(util.attended), SUM(util.capacity)) * 100
+        COMMENT = ''Attended places as a percentage of capacity'',
+      util.no_show_rate      AS DIV0(SUM(util.bookings) - SUM(util.attended), SUM(util.bookings)) * 100
+        COMMENT = ''Booked but did not attend, percent''
+    )
+    COMMENT = ''Nova Gold layer for operator ' || :sch || '''
+    AI_SQL_GENERATION ''Unless the user says otherwise, "active members" means the active_members metric (source status).''
+    AI_VERIFIED_QUERIES (
+      vq_active_members AS (
+        QUESTION ''How many active members do we have?''
+        SQL ''SELECT COUNT_IF(last_paid_on >= DATEADD(day, -35, CURRENT_DATE())) AS active_members FROM ' || :fq || '.MEMBERS__MEMBERSHIP''
+      )
+    )';
+
+  -- 5. Simulated Bifrost merge task (1 minute)
+  EXECUTE IMMEDIATE 'CREATE OR REPLACE TASK ' || :fq || '.TSK_BIFROST_MERGE
+      WAREHOUSE = DQ_LAB_WH SCHEDULE = ''1 MINUTE''
+      COMMENT = ''Simulated Bifrost / Snowpipe Streaming merge batch''
+    AS CALL GLADSTONE_DQ_LAB.ADMIN.BIFROST_MERGE(''' || :sch || ''')';
+
+  -- 6. Hand the operator its database (schema) - attendees own everything inside their schema only
+  EXECUTE IMMEDIATE 'GRANT OWNERSHIP ON ALL TABLES IN SCHEMA ' || :fq || ' TO ROLE ' || :rl || ' COPY CURRENT GRANTS';
+  EXECUTE IMMEDIATE 'GRANT OWNERSHIP ON ALL DYNAMIC TABLES IN SCHEMA ' || :fq || ' TO ROLE ' || :rl || ' COPY CURRENT GRANTS';
+  EXECUTE IMMEDIATE 'GRANT OWNERSHIP ON ALL TASKS IN SCHEMA ' || :fq || ' TO ROLE ' || :rl || ' COPY CURRENT GRANTS';
+  EXECUTE IMMEDIATE 'GRANT OWNERSHIP ON SEMANTIC VIEW ' || :fq || '.SV_OPERATOR_KPIS TO ROLE ' || :rl || ' COPY CURRENT GRANTS';
+  EXECUTE IMMEDIATE 'GRANT OWNERSHIP ON SCHEMA ' || :fq || ' TO ROLE ' || :rl || ' COPY CURRENT GRANTS';
+  EXECUTE IMMEDIATE 'ALTER TASK ' || :fq || '.TSK_BIFROST_MERGE RESUME';
+
+  -- 7. Register (fault slot = order of registration, used by INJECT_FAULTS round-robin)
+  DELETE FROM GLADSTONE_DQ_LAB.ADMIN.ATTENDEES WHERE short_name = :nm;
+  SELECT COALESCE(MAX(fault_slot), 0) + 1 INTO :slot FROM GLADSTONE_DQ_LAB.ADMIN.ATTENDEES;
+  INSERT INTO GLADSTONE_DQ_LAB.ADMIN.ATTENDEES (short_name, user_name, schema_name, role_name, fault_slot)
+    VALUES (:nm, NULL, :sch, :rl, :slot);
+
+  -- 8. Bind the user (optional: spares and resets pass NULL)
+  IF (:USER_NAME IS NOT NULL AND :USER_NAME <> '') THEN
+    CALL GLADSTONE_DQ_LAB.ADMIN.BIND_USER(:USER_NAME, :nm, :SET_DEFAULTS) INTO :res;
+  END IF;
+
+  RETURN 'Ready: ' || :fq || ' owned by ' || :rl || IFF(:res = 'OK', '', ' | ' || :res);
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE SETUP_ALL(ATTENDEE_LIST VARIANT)
+RETURNS VARCHAR
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+$$
+DECLARE
+  done NUMBER DEFAULT 0;
+  u VARCHAR;
+  nm VARCHAR;
+  sd BOOLEAN;
+  res VARCHAR;
+  errs VARCHAR DEFAULT '';
+  c1 CURSOR FOR SELECT value:user::VARCHAR AS u, value:name::VARCHAR AS n,
+                       COALESCE(value:set_defaults::BOOLEAN, TRUE) AS sd
+                FROM TABLE(FLATTEN(INPUT => PARSE_JSON(?)));
+BEGIN
+  OPEN c1 USING (TO_JSON(ATTENDEE_LIST));
+  FOR r IN c1 DO
+    u := r.u;
+    nm := r.n;
+    sd := r.sd;
+    CALL GLADSTONE_DQ_LAB.ADMIN.SETUP_ATTENDEE(:u, :nm, :sd) INTO :res;
+    IF (CONTAINS(:res, 'ERROR')) THEN
+      errs := errs || ' | ' || :nm || ': ' || :res;
+    END IF;
+    done := done + 1;
+  END FOR;
+  RETURN done || ' operator(s) ready' || IFF(errs = '', '', '. Check:' || errs);
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Walk-ins: pre-built, unassigned operators. Claiming one is a grant, not a clone.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE SETUP_SPARES(N NUMBER)
+RETURNS VARCHAR
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+$$
+DECLARE
+  made NUMBER DEFAULT 0;
+  k    NUMBER;
+  nm   VARCHAR;
+BEGIN
+  SELECT COALESCE(MAX(TRY_TO_NUMBER(SUBSTR(short_name, 6))), 0) INTO :k
+    FROM GLADSTONE_DQ_LAB.ADMIN.ATTENDEES WHERE is_spare;
+  FOR i IN 1 TO N DO
+    nm := 'SPARE' || LPAD((:k + :i)::VARCHAR, 2, '0');
+    CALL GLADSTONE_DQ_LAB.ADMIN.SETUP_ATTENDEE(NULL, :nm, FALSE);
+    UPDATE GLADSTONE_DQ_LAB.ADMIN.ATTENDEES SET is_spare = TRUE WHERE short_name = :nm;
+    made := made + 1;
+  END FOR;
+  RETURN made || ' spare operator(s) ready. Claim with CALL ADMIN.CLAIM_SPARE(''<USER>'');';
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE CLAIM_SPARE(USER_NAME VARCHAR, SET_DEFAULTS BOOLEAN DEFAULT TRUE)
+RETURNS VARCHAR
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+$$
+DECLARE
+  nm  VARCHAR;
+  res VARCHAR;
+  n   NUMBER;
+BEGIN
+  -- Check the user exists before using up a spare or building a new operator
+  EXECUTE IMMEDIATE 'SHOW USERS LIKE ''' || REPLACE(REPLACE(:USER_NAME, '"', ''), '''', '') || '''';
+  SELECT COUNT(*) INTO :n FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) WHERE UPPER("name") = UPPER(:USER_NAME);
+  IF (:n = 0) THEN
+    RETURN 'ERROR: user ' || :USER_NAME || ' not found - nothing claimed. Check the exact user name (SHOW USERS).';
+  END IF;
+  SELECT MIN(short_name) INTO :nm FROM GLADSTONE_DQ_LAB.ADMIN.ATTENDEES
+   WHERE is_spare AND (user_name IS NULL OR user_name = '');
+  IF (:nm IS NULL) THEN
+    -- No spares left: build a fresh operator named after the user (~20 seconds)
+    nm := LEFT(UPPER(REGEXP_REPLACE(SPLIT_PART(:USER_NAME, '@', 1), '[^A-Za-z0-9]', '')), 20);
+    SELECT COUNT(*) INTO :n FROM GLADSTONE_DQ_LAB.ADMIN.ATTENDEES WHERE short_name = :nm;
+    IF (:n > 0) THEN
+      nm := :nm || '2';
+    END IF;
+    CALL GLADSTONE_DQ_LAB.ADMIN.SETUP_ATTENDEE(:USER_NAME, :nm, :SET_DEFAULTS) INTO :res;
+    RETURN 'No spare left - built new operator ' || :nm || ': ' || :res;
+  END IF;
+  CALL GLADSTONE_DQ_LAB.ADMIN.BIND_USER(:USER_NAME, :nm, :SET_DEFAULTS) INTO :res;
+  IF (:res <> 'OK') THEN
+    RETURN :res;
+  END IF;
+  INSERT INTO GLADSTONE_DQ_LAB.ADMIN.SPARE_CLAIMS (short_name, user_name) VALUES (:nm, :USER_NAME);
+  RETURN 'Claimed: tell the attendee their operator name is ' || :nm ||
+         ' (role DQ_LAB_' || :nm || ', schema CUST_' || :nm || ')';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Put attendees' original default role / warehouse back (called by 98_teardown.sql)
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE RESTORE_USER_DEFAULTS()
+RETURNS VARCHAR
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+$$
+DECLARE
+  n  NUMBER DEFAULT 0;
+  u  VARCHAR;
+  pr VARCHAR;
+  pw VARCHAR;
+  c1 CURSOR FOR SELECT user_name, prev_default_role, prev_default_wh
+                FROM GLADSTONE_DQ_LAB.ADMIN.ATTENDEES WHERE defaults_set AND user_name IS NOT NULL;
+BEGIN
+  FOR r IN c1 DO
+    u := r.user_name;
+    pr := r.prev_default_role;
+    pw := r.prev_default_wh;
+    EXECUTE IMMEDIATE 'ALTER USER IF EXISTS "' || :u || '" ' ||
+      IFF(:pr IS NULL, 'UNSET DEFAULT_ROLE', 'SET DEFAULT_ROLE = "' || :pr || '"');
+    EXECUTE IMMEDIATE 'ALTER USER IF EXISTS "' || :u || '" ' ||
+      IFF(:pw IS NULL, 'UNSET DEFAULT_WAREHOUSE', 'SET DEFAULT_WAREHOUSE = "' || :pw || '"');
+    n := n + 1;
+  END FOR;
+  RETURN n || ' user(s) restored to their previous defaults';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Faults: a different one per operator so the fleet view shows distinct signatures.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE INJECT_FAULTS(TARGET VARCHAR)
+RETURNS VARCHAR
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+$$
+DECLARE
+  n NUMBER DEFAULT 0;
+  fq VARCHAR;
+  code VARCHAR;
+  sname VARCHAR;
+  c1 CURSOR FOR SELECT schema_name, fault_slot FROM GLADSTONE_DQ_LAB.ADMIN.ATTENDEES
+                WHERE ? = 'ALL' OR schema_name = UPPER(?) OR short_name = UPPER(?)
+                ORDER BY fault_slot;
+BEGIN
+  OPEN c1 USING (TARGET, TARGET, TARGET);
+  FOR r IN c1 DO
+    sname := r.schema_name;
+    fq := 'GLADSTONE_DQ_LAB.' || :sname;
+    code := DECODE(MOD(r.fault_slot - 1, 6), 0,'BIFROST_REPLAY', 1,'MERGE_TASK_STALLED', 2,'REFUND_SIGN_FLIP',
+                                             3,'ORPHAN_ATTENDANCE', 4,'TENANT_LEAK', 'STATUS_DRIFT');
+    CASE (code)
+      WHEN 'BIFROST_REPLAY' THEN
+        -- The same merge batch is applied twice: 150 member rows duplicated.
+        EXECUTE IMMEDIATE 'INSERT INTO ' || :fq || '.MEMBERS__MEMBER
+           SELECT * REPLACE (''B-REPLAY-01'' AS _batch_id, CURRENT_TIMESTAMP() AS _loaded_at)
+           FROM ' || :fq || '.MEMBERS__MEMBER WHERE status = ''ACTIVE'' ORDER BY member_id LIMIT 150';
+        EXECUTE IMMEDIATE 'INSERT INTO ' || :fq || '._SYNC_META__MERGE_BATCH SELECT ''B-REPLAY-01'', operator_id,
+           ''MEMBERS__MEMBER'', 150, CURRENT_TIMESTAMP() FROM ' || :fq || '.SHARED__SITE LIMIT 2';
+        INSERT INTO GLADSTONE_DQ_LAB.ADMIN.FAULT_LOG (schema_name, fault_code, description, expected_detection)
+          VALUES (:sname, :code, 'Merge batch B-REPLAY-01 applied twice: 150 duplicate member rows; active members inflated',
+                  'DUPLICATE_COUNT(member_id) > 0 on MEMBERS__MEMBER; batch_id appears twice in _SYNC_META__MERGE_BATCH');
+      WHEN 'MERGE_TASK_STALLED' THEN
+        EXECUTE IMMEDIATE 'ALTER TASK ' || :fq || '.TSK_BIFROST_MERGE SUSPEND';
+        INSERT INTO GLADSTONE_DQ_LAB.ADMIN.FAULT_LOG (schema_name, fault_code, description, expected_detection)
+          VALUES (:sname, :code, 'Bifrost merge task suspended: no new payments or bookings; REPORTING goes stale',
+                  'FRESHNESS on SYSTEM__PAYMENT breaches expectation; TASK_HISTORY shows no runs; no new _SYNC_META batches');
+      WHEN 'REFUND_SIGN_FLIP' THEN
+        EXECUTE IMMEDIATE 'INSERT INTO ' || :fq || '.SYSTEM__PAYMENT
+           SELECT ''PY-NEG-'' || SEQ4(), ''' || r.schema_name || ''',
+                  ''M-'' || LPAD((1000 + SEQ4())::VARCHAR, 5, ''0''), CURRENT_DATE(), -250.00, ''PAYMENT'',
+                  ''B-SIGNBUG-01'', CURRENT_TIMESTAMP()
+           FROM TABLE(GENERATOR(ROWCOUNT => 40))';
+        INSERT INTO GLADSTONE_DQ_LAB.ADMIN.FAULT_LOG (schema_name, fault_code, description, expected_detection)
+          VALUES (:sname, :code, 'Refunds arrived as negative PAYMENT rows (batch B-SIGNBUG-01); today''s net revenue collapses',
+                  'NEGATIVE_COUNT(amount) > 0 on SYSTEM__PAYMENT; net_revenue drop on REPORTING__DAILY_REVENUE');
+      WHEN 'ORPHAN_ATTENDANCE' THEN
+        EXECUTE IMMEDIATE 'INSERT INTO ' || :fq || '.SYSTEM__ATTENDANCE
+           SELECT ''AT-GHOST-'' || SEQ4(), ''' || r.schema_name || ''', ''BK-GHOST-'' || SEQ4(),
+                  ''M-'' || LPAD((1000 + SEQ4())::VARCHAR, 5, ''0''), CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP()
+           FROM TABLE(GENERATOR(ROWCOUNT => 60))';
+        INSERT INTO GLADSTONE_DQ_LAB.ADMIN.FAULT_LOG (schema_name, fault_code, description, expected_detection)
+          VALUES (:sname, :code, '60 turnstile check-ins with no matching booking (booking sync partially failed)',
+                  'REFERENTIAL_INTEGRITY_COUNT(booking_id -> SYSTEM__BOOKING) > 0 on SYSTEM__ATTENDANCE');
+      WHEN 'TENANT_LEAK' THEN
+        EXECUTE IMMEDIATE 'INSERT INTO ' || :fq || '.MEMBERS__MEMBER
+           SELECT * REPLACE (''CUST_NEIGHBOUR'' AS operator_id, ''M-9'' || SUBSTR(member_id, 4) AS member_id,
+                             ''B-MISROUTE-01'' AS _batch_id, CURRENT_TIMESTAMP() AS _loaded_at)
+           FROM ' || :fq || '.MEMBERS__MEMBER ORDER BY member_id LIMIT 50';
+        INSERT INTO GLADSTONE_DQ_LAB.ADMIN.FAULT_LOG (schema_name, fault_code, description, expected_detection)
+          VALUES (:sname, :code, '50 member rows from another operator (CUST_NEIGHBOUR) routed into this operator',
+                  'DQ_COMMON.FOREIGN_OPERATOR_ROWS(operator_id) > 0 on MEMBERS__MEMBER');
+      ELSE
+        -- Source system kept cancelled members as ACTIVE: status-based and paid-based "active" diverge.
+        EXECUTE IMMEDIATE 'UPDATE ' || :fq || '.MEMBERS__MEMBER
+           SET status = ''ACTIVE'', _batch_id = ''B-STATUS-01'', _loaded_at = CURRENT_TIMESTAMP()
+           WHERE status = ''CANCELLED''';
+        INSERT INTO GLADSTONE_DQ_LAB.ADMIN.FAULT_LOG (schema_name, fault_code, description, expected_detection)
+          VALUES (:sname, :code, 'Cancelled members re-sent as ACTIVE; Nova''s active members disagrees with the verified (paid in 35 days) query',
+                  'Gold check: active_members metric vs vq_active_members gap jumps from ~6% to ~25%; ACCEPTED_VALUES / left_on not null with ACTIVE');
+    END CASE;
+    n := n + 1;
+  END FOR;
+  RETURN 'Faults injected into ' || n || ' operator(s). See ADMIN.V_FLEET_ANSWER_KEY';
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE RESET_ATTENDEE(SHORT_NAME VARCHAR)
+RETURNS VARCHAR
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+$$
+DECLARE
+  u  VARCHAR;
+  sp BOOLEAN;
+  ds BOOLEAN;
+  pr VARCHAR;
+  pw VARCHAR;
+BEGIN
+  -- keep the user binding and saved defaults; only the data is rebuilt
+  SELECT MAX(user_name), BOOLOR_AGG(is_spare), BOOLOR_AGG(defaults_set), MAX(prev_default_role), MAX(prev_default_wh)
+    INTO :u, :sp, :ds, :pr, :pw
+    FROM GLADSTONE_DQ_LAB.ADMIN.ATTENDEES WHERE short_name = UPPER(:SHORT_NAME);
+  DELETE FROM GLADSTONE_DQ_LAB.ADMIN.FAULT_LOG WHERE schema_name = 'CUST_' || UPPER(:SHORT_NAME);
+  CALL GLADSTONE_DQ_LAB.ADMIN.SETUP_ATTENDEE(NULL, :SHORT_NAME, FALSE);
+  UPDATE GLADSTONE_DQ_LAB.ADMIN.ATTENDEES
+     SET user_name = :u, is_spare = COALESCE(:sp, FALSE), defaults_set = COALESCE(:ds, FALSE),
+         prev_default_role = :pr, prev_default_wh = :pw
+   WHERE short_name = UPPER(:SHORT_NAME);
+  RETURN 'Reset CUST_' || UPPER(:SHORT_NAME) || ' (DMF attachments removed - attendee re-runs Session 2)';
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE SUSPEND_ALL()
+RETURNS VARCHAR
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+$$
+DECLARE
+  n NUMBER DEFAULT 0;
+  dts ARRAY DEFAULT ARRAY_CONSTRUCT('REPORTING__ACTIVE_MEMBERS','REPORTING__DAILY_REVENUE','REPORTING__CLASS_UTILISATION');
+  c1 CURSOR FOR SELECT schema_name FROM GLADSTONE_DQ_LAB.INFORMATION_SCHEMA.SCHEMATA
+                WHERE schema_name LIKE 'CUST\\_%' ESCAPE '\\';
+BEGIN
+  OPEN c1;
+  FOR r IN c1 DO
+    EXECUTE IMMEDIATE 'ALTER TASK IF EXISTS GLADSTONE_DQ_LAB.' || r.schema_name || '.TSK_BIFROST_MERGE SUSPEND';
+    FOR i IN 0 TO ARRAY_SIZE(:dts) - 1 DO
+      EXECUTE IMMEDIATE 'ALTER DYNAMIC TABLE IF EXISTS GLADSTONE_DQ_LAB.' || r.schema_name || '.' || GET(:dts, :i)::VARCHAR || ' SUSPEND';
+    END FOR;
+    n := n + 1;
+  END FOR;
+  ALTER DATABASE GLADSTONE_DQ_LAB UNSET DATA_QUALITY_MONITORING_SETTINGS;
+  RETURN 'Suspended tasks and dynamic tables in ' || n || ' schema(s); notifications off';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Fleet views (Session 5)
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE VIEW V_FLEET_DQ_HEALTH AS
+WITH latest AS (
+  SELECT table_schema AS operator, table_name, metric_name,
+         ARRAY_TO_STRING(argument_names, ',') AS columns_checked,
+         expectation_name, expectation_expression, expectation_violated,
+         value, measurement_time
+  FROM SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_EXPECTATION_STATUS
+  WHERE table_database = 'GLADSTONE_DQ_LAB' AND table_schema LIKE 'CUST\\_%' ESCAPE '\\'
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY table_schema, table_name, metric_name, expectation_name
+                             ORDER BY measurement_time DESC) = 1
+)
+SELECT operator,
+       COUNT(*)                         AS checks,
+       COUNT_IF(expectation_violated)   AS failing_checks,
+       ARRAY_AGG(DISTINCT IFF(expectation_violated, table_name || '.' || metric_name || '(' || columns_checked || ')', NULL)) AS failing,
+       MAX(measurement_time)            AS last_measured
+FROM latest
+GROUP BY operator
+ORDER BY failing_checks DESC, operator;
+
+CREATE OR REPLACE VIEW V_FLEET_ANSWER_KEY AS
+SELECT a.short_name, a.schema_name, f.fault_code, f.description, f.expected_detection, f.injected_at
+FROM GLADSTONE_DQ_LAB.ADMIN.ATTENDEES a
+LEFT JOIN GLADSTONE_DQ_LAB.ADMIN.FAULT_LOG f ON f.schema_name = a.schema_name
+ORDER BY a.fault_slot;
+
+-- Roster: who is ready, which spares are free, and who has logged in.
+-- last_success_login comes from ACCOUNT_USAGE (can lag up to ~2 hours) - run it the day before, not at T-0.
+CREATE OR REPLACE VIEW V_ROSTER AS
+SELECT a.short_name AS operator_name, a.schema_name, a.role_name, a.user_name,
+       CASE WHEN a.is_spare AND a.user_name IS NULL THEN 'SPARE - free'
+            WHEN a.is_spare THEN 'SPARE - claimed'
+            WHEN a.user_name IS NULL THEN 'NO USER BOUND'
+            ELSE 'ASSIGNED' END AS status,
+       a.defaults_set, u.last_success_login, u.disabled, a.created_at
+FROM GLADSTONE_DQ_LAB.ADMIN.ATTENDEES a
+LEFT JOIN SNOWFLAKE.ACCOUNT_USAGE.USERS u
+  ON u.name = a.user_name AND u.deleted_on IS NULL
+ORDER BY status, a.fault_slot;
+
+-- Attendees may call the merge proc (from their task) and read the fleet health view (not the answer key)
+GRANT USAGE ON SCHEMA GLADSTONE_DQ_LAB.ADMIN TO ROLE DQ_LAB_ATTENDEE;
+GRANT USAGE ON PROCEDURE GLADSTONE_DQ_LAB.ADMIN.BIFROST_MERGE(VARCHAR) TO ROLE DQ_LAB_ATTENDEE;
+GRANT SELECT ON VIEW GLADSTONE_DQ_LAB.ADMIN.V_FLEET_DQ_HEALTH TO ROLE DQ_LAB_ATTENDEE;
