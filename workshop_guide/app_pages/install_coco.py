@@ -90,6 +90,11 @@ role          = "{ctx()['ROLE']}"
 warehouse     = "DQ_LAB_WH"
 database      = "GLADSTONE_DQ_LAB"
 schema        = "{ctx()['SCHEMA']}\"""", language="toml")
+    st.info("**SSO or password?** Use the way you sign in to Snowflake in the browser. "
+            "**SSO** (for example Microsoft Entra ID): `authenticator = \"externalbrowser\"`. "
+            "**Password + MFA**: leave `authenticator` out and add `password = \"...\"` - you'll get an MFA prompt; "
+            "`oauth_authorization_code` avoids storing a password. Not sure? Try `externalbrowser` first.",
+            icon=":material/key:")
     st.markdown("##### Keep it current")
     st.code("cortex update", language="bash")
 

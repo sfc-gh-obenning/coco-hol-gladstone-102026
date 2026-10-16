@@ -8,7 +8,7 @@ Items marked **T-5** are needed five working days before the lab; the rest by T-
 | # | Question | Why we ask | When |
 |---|---|---|---|
 | 1 | Who will run setup, and do they have ACCOUNTADMIN (or SYSADMIN plus SECURITYADMIN)? | Setup creates roles, a warehouse, a resource monitor and an email integration, and grants account-level privileges | **T-5** |
-| 2 | What are the attendees' exact Snowflake user names (fill in `ATTENDEE_ROSTER.csv`)? Do they sign in with SSO (Entra ID) or password plus MFA? | Roles are granted per user name; a typo is the most common setup failure | **T-5** |
+| 2 | What are the attendees' exact Snowflake user names (fill in `ATTENDEE_ROSTER.csv`)? | Roles are granted per user name; a typo is the most common setup failure | **T-5** |
 | 3 | Are users provisioned by SCIM? | If SCIM owns user properties, we leave `DEFAULT_ROLE` alone (`"set_defaults": false`) and attendees run `USE ROLE` | T-3 |
 | 4 | Can we create a temporary user for a walk-in, or is that blocked by policy? | Decides whether walk-ins without a user pair up or get a spare operator | T-3 |
 
@@ -55,7 +55,7 @@ Items marked **T-5** are needed five working days before the lab; the rest by T-
 > Ahead of the data quality lab on <date>, could you help with six things so setup takes 15 minutes rather than an hour?
 >
 > 1. Who will run the setup scripts, and do they have ACCOUNTADMIN?
-> 2. The attendees' exact Snowflake user names (template attached: ATTENDEE_ROSTER.csv), and whether they use SSO or password plus MFA.
+> 2. The attendees' exact Snowflake user names (template attached: ATTENDEE_ROSTER.csv).
 > 3. Is CoCo Desktop or CLI installed for each attendee, and who approves installs?
 > 4. The value of `CORTEX_ENABLED_CROSS_REGION`, and whether cross-region inference is allowed.
 > 5. The output of section 6 (pre-flight checks) of `00_admin_setup.sql` - three read-only statements you can run on their own.
