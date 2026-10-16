@@ -39,6 +39,7 @@ page = st.navigation(
         "": [
             st.Page("app_pages/home.py", title="Home", icon=":material/home:"),
             st.Page("app_pages/before_you_start.py", title="Before you start", icon=":material/event_available:"),
+            st.Page("app_pages/install_coco.py", title="Install CoCo Desktop and CLI", icon=":material/download:"),
             st.Page("app_pages/getting_started.py", title="Getting started", icon=":material/rocket_launch:"),
             st.Page("app_pages/agenda.py", title="Agenda", icon=":material/calendar_today:"),
         ],

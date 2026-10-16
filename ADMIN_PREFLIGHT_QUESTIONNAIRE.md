@@ -16,8 +16,8 @@ Items marked **T-5** are needed five working days before the lab; the rest by T-
 
 | # | Question | Why we ask | When |
 |---|---|---|---|
-| 5 | Is CoCo Desktop or CLI installed and signed in for each attendee? Who approves installs (IT, managed laptop policy)? | CoCo is the primary route through the lab; installs can take days to approve | **T-5** |
-| 6 | What is `CORTEX_ENABLED_CROSS_REGION` set to, and does your data policy allow cross-region inference? | Some models are not hosted in UK South; without cross-region, CoCo and the agent step may fail | **T-5** |
+| 5 | Is CoCo Desktop or CLI installed and signed in for each attendee? Who approves installs (IT, managed laptop policy)? | CoCo is the primary route through the lab; installs can take days to approve. The Windows *User installer* needs no admin rights | **T-5** |
+| 6 | What is `CORTEX_ENABLED_CROSS_REGION` set to, and does your data policy allow cross-region inference? | CoCo Desktop is available to accounts with cross-region inference enabled, and some models are not hosted in UK South - without it, CoCo and the agent step may not work | **T-5** |
 | 7 | Is `SNOWFLAKE.CORTEX_USER` restricted, or are there model allow-lists? | Attendees need Cortex access through the `DQ_LAB_ATTENDEE` role | T-3 |
 | 8 | Can you run section 6 (pre-flight checks) of `sql/00_admin_setup.sql` on its own - it is read-only - and send us the output? | Confirms the region and cloud, which system DMFs your account has, and the cross-region setting, so we can adjust the lab before setup | **T-5** |
 
