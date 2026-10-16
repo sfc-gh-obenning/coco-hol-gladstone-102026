@@ -91,6 +91,7 @@ AS
 EXECUTE IMMEDIATE $$
 DECLARE
   bad NUMBER;
+  msg VARCHAR;
 BEGIN
   SELECT COUNT(*) INTO :bad FROM (
     SELECT expectation_violated
@@ -102,7 +103,9 @@ BEGIN
   IF (bad > 0) THEN
     ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_NIELS.REPORTING__ACTIVE_MEMBERS SUSPEND;
     ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_NIELS.REPORTING__DAILY_REVENUE SUSPEND;
-    CALL SYSTEM$SET_RETURN_VALUE('OPEN: ' || :bad || ' failing Bronze check(s) - REPORTING frozen at last good state');
+    -- SYSTEM$SET_RETURN_VALUE needs a plain variable or literal, not an expression
+    msg := 'OPEN: ' || :bad || ' failing Bronze check(s) - REPORTING frozen at last good state';
+    CALL SYSTEM$SET_RETURN_VALUE(:msg);
     RETURN 'OPEN';
   ELSE
     ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_NIELS.REPORTING__ACTIVE_MEMBERS RESUME;

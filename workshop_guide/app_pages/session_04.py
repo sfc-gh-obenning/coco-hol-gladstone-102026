@@ -16,7 +16,7 @@ render_prompt("Prompt 4.1", "Build a circuit breaker", """In {FQ_SCHEMA}, create
 - reads the latest result per expectation from SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_EXPECTATION_STATUS for tables MEMBERS__MEMBER, SYSTEM__PAYMENT and SYSTEM__ATTENDANCE in schema {SCHEMA}
 - if any is violated: suspends dynamic tables REPORTING__ACTIVE_MEMBERS and REPORTING__DAILY_REVENUE
 - otherwise: resumes them
-- records what it did with SYSTEM$SET_RETURN_VALUE (for example "OPEN: 1 failing check" or "CLOSED: Bronze clean")
+- records what it did with SYSTEM$SET_RETURN_VALUE (for example "OPEN: 1 failing check" or "CLOSED: Bronze clean"); build the message in a variable first, because SYSTEM$SET_RETURN_VALUE does not accept an expression
 Resume the task, wait for one run, and show me its return value and the dynamic tables' scheduling state.""")
 render_snowsight_route([
     "**Projects » Workspaces** (or a worksheet): paste the task SQL from *Behind? Run this* and run it.",
@@ -57,7 +57,7 @@ render_fallback("""USE SCHEMA {FQ_SCHEMA};
 CREATE OR REPLACE TASK TSK_DQ_CIRCUIT_BREAKER WAREHOUSE = DQ_LAB_WH SCHEDULE = '1 MINUTE'
 AS
 EXECUTE IMMEDIATE $$
-DECLARE bad NUMBER;
+DECLARE bad NUMBER; msg VARCHAR;
 BEGIN
   SELECT COUNT(*) INTO :bad FROM (
     SELECT expectation_violated FROM SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_EXPECTATION_STATUS
@@ -68,7 +68,8 @@ BEGIN
   IF (bad > 0) THEN
     ALTER DYNAMIC TABLE {FQ_SCHEMA}.REPORTING__ACTIVE_MEMBERS SUSPEND;
     ALTER DYNAMIC TABLE {FQ_SCHEMA}.REPORTING__DAILY_REVENUE SUSPEND;
-    CALL SYSTEM$SET_RETURN_VALUE('OPEN: ' || :bad || ' failing Bronze check(s)');
+    msg := 'OPEN: ' || :bad || ' failing Bronze check(s)';   -- SET_RETURN_VALUE needs a variable, not an expression
+    CALL SYSTEM$SET_RETURN_VALUE(:msg);
   ELSE
     ALTER DYNAMIC TABLE {FQ_SCHEMA}.REPORTING__ACTIVE_MEMBERS RESUME;
     ALTER DYNAMIC TABLE {FQ_SCHEMA}.REPORTING__DAILY_REVENUE RESUME;
