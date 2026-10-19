@@ -12,15 +12,19 @@ with st.container(border=True):
 | Item | Details |
 |---|---|
 | **CoCo Desktop or CoCo CLI** | Signed in to Gladstone's Snowflake account (`GLADSTONESOFTWARE`). Either works for every step. |
-| **Your operator name** | From your admin, e.g. `NIELS`. Type it in the sidebar - every prompt updates. |
+| **Your operator name** | From your admin, e.g. `OPERATOR01`. Type it in the sidebar - every prompt updates. |
 | **Browser** | Snowsight, for the *Do it in Snowsight* routes and the data quality dashboard. |
 | **Bonus B3 only** | Snowflake CLI (`snow`) 3.17+ and git. |
 """)
 
 c = ctx()
 st.markdown("#### :material/checklist: Check your setup")
-st.markdown("##### 1. Connect CoCo with your operator role")
+st.markdown("##### 1. Connect CoCo and switch to your operator role")
 with st.container(border=True):
+    st.warning("**You have to set your role yourself.** The lab grants you role "
+               f"`{c['ROLE']}` but usually doesn't make it your default, so CoCo and Snowsight start in your usual role. "
+               "Switch now, and again after any reconnect, new CoCo session or new worksheet.",
+               icon=":material/badge:")
     st.markdown(fill("""
 - **CoCo Desktop**: choose the connection to `GLADSTONESOFTWARE`, then set role **`{ROLE}`** and warehouse **`DQ_LAB_WH`**.
 - **CoCo CLI**: start `cortex` in a terminal (or `cortex -c <your-connection>`), then ask: *"use role {ROLE} and warehouse DQ_LAB_WH"*.

@@ -54,4 +54,4 @@ the last good state. Alerts: database-level notification settings, with only the
 - `dq-lab/sql/` - admin setup, template, procedures, answer keys, reset, teardown
 - `dq-lab/sql/bonus/` - B1 / B2 / B3 setup, answer keys, teardowns; `dcm_project/` with a sample GitHub Actions workflow
 - `dq-lab/workshop_guide/` - the Streamlit guide
-- `dq-lab/ADMIN_PREFLIGHT_QUESTIONNAIRE.md`, `ATTENDEE_ROSTER.csv`, `ATTENDEE_PREP.md` - reuse them to run the lab again for another team
+- `dq-lab/ADMIN_PREFLIGHT_QUESTIONNAIRE.md`, `ATTENDEE_PREP.md` and the guide's Lab setup page - reuse them to run the lab again for another team

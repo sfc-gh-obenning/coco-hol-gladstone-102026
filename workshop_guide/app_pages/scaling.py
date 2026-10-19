@@ -17,7 +17,7 @@ digraph {
   fleet [label="Fleet view\\n+ DQ dashboard + digest"];
   common -> ops [label="attach"]; dcm -> ops [label="deploy"]; ops -> local -> fleet;
 }
-""", alt="Diagram: central DQ_COMMON functions and a DCM project attach checks to every operator database; results flow to SNOWFLAKE.LOCAL and a fleet view")
+""")
 
 st.markdown("#### :material/format_list_numbered: Ten practices")
 st.markdown("""

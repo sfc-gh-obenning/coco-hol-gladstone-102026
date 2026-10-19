@@ -10,7 +10,7 @@ pages = sorted((ROOT / "app_pages").glob("*.py"))
 failed = 0
 for p in pages:
     at = AppTest.from_file(str(p), default_timeout=30)
-    at.session_state["operator_name"] = "NIELS"
+    at.session_state["operator_name"] = "OPERATOR01"
     at.run()
     errs = [e.value for e in at.exception]
     code_blocks = "\n".join(c.value for c in at.code)

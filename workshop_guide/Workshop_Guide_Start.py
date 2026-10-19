@@ -23,7 +23,7 @@ st.logo(
     icon_image=str(_DIR / "static" / "snowflake_logo.png"),
 )
 
-st.session_state.setdefault("operator_name", "NIELS")
+st.session_state.setdefault("operator_name", "OPERATOR01")
 
 with st.sidebar:
     st.text_input(

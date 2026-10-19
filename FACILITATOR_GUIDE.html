@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="snowflake-source" content="cortex-agent-authored" />
+<title>Gladstone DQ HOL - Facilitator guide (internal)</title>
+<script type="application/json" id="snowflake-report-metadata">
+{
+  "generated": "2026-10-19",
+  "intent": "Internal facilitator run-of-show for the Gladstone MRM data quality hands-on lab: talk track, what/using/why/real-world per segment, stop-and-check checkpoints, and the actions the customer admin runs. Not customer facing.",
+  "dataSources": [
+    { "type": "file", "path": "dq-lab/workshop_guide/app_pages/session_01.py .. session_05.py", "note": "what/why, prompts, checkpoints, technologies, real-world examples" },
+    { "type": "file", "path": "dq-lab/workshop_guide/content/story.py", "note": "story lines, CS tickets, epilogue" },
+    { "type": "file", "path": "dq-lab/sql/02_lab_procs.sql", "note": "INJECT_FAULTS, V_FLEET_ANSWER_KEY, V_FLEET_DQ_HEALTH, CLAIM_SPARE, RESET_ATTENDEE" }
+  ],
+  "sections": [
+    { "id": "how", "title": "How to use this guide" },
+    { "id": "before", "title": "Before the lab" },
+    { "id": "email", "title": "Email to the admin (T-5)" },
+    { "id": "run", "title": "Run of show" },
+    { "id": "faults", "title": "Faults, tickets and fixes" },
+    { "id": "recovery", "title": "Walk-ins and recovery" },
+    { "id": "access", "title": "If you have access: fault injection and answer key", "dataSources": [{ "type": "file", "path": "dq-lab/sql/answer_key_core.sql" }], "producerNotes": "Answer key is embedded verbatim; re-embed if the SQL file changes." },
+    { "id": "after", "title": "After the lab" }
+  ],
+  "producerNotes": "Talk track mirrors the workshop guide pages; if a session page changes, update the matching segment here."
+}
+</script>
+<style>
+  :root { color-scheme: light dark; --sf: #29B5E8; --navy: light-dark(#11567F, #7cc8ee);
+          --line: light-dark(#d6e0eb, #334155); --muted: light-dark(#5b6b82, #94a3b8); }
+  body { font-family: -apple-system, system-ui, "Segoe UI", sans-serif; line-height: 1.5;
+         max-width: 980px; width: 100%; box-sizing: border-box; margin: 0 auto;
+         padding: clamp(16px, 4vw, 28px); color: light-dark(#1B2A4A, #e5e7eb);
+         background: light-dark(#ffffff, #0f172a); }
+  h1 { color: var(--navy); margin-bottom: 4px; }
+  h2 { color: var(--navy); border-bottom: 2px solid var(--sf); padding-bottom: 4px; margin-top: 40px; }
+  h3 { margin: 6px 0 4px; }
+  a { color: light-dark(#0b6fa4, #60a5fa); }
+  code, pre { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; font-size: 0.86em; }
+  code { background: light-dark(#eef4f8, #1e293b); padding: 1px 5px; border-radius: 4px; }
+  pre { background: light-dark(#f3f6f9, #111c2e); border: 1px solid var(--line);
+        padding: 10px 12px; border-radius: 6px; overflow-x: auto; white-space: pre; margin: 6px 0; }
+  pre code { background: none; padding: 0; }
+  .table-wrap { overflow-x: auto; margin: 12px 0; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: light-dark(#f0f4f8, #1e293b); }
+  .banner { background: light-dark(#fff4e5, #3b2a12); border-left: 4px solid #f59e0b; padding: 10px 14px; border-radius: 4px; }
+  .seg { border: 1px solid var(--line); border-radius: 10px; padding: 12px 18px 14px; margin: 18px 0; }
+  .seg-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .time { background: var(--navy); color: light-dark(#fff, #0f172a); font-weight: 700;
+          padding: 2px 10px; border-radius: 12px; font-size: 0.85em; }
+  .page { color: var(--muted); font-size: 0.85em; }
+  .say { background: light-dark(#e8f6fd, #0c2a3b); border-left: 4px solid var(--sf); padding: 8px 12px;
+         border-radius: 4px; margin: 10px 0; font-style: italic; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin: 10px 0; }
+  .card { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+  .card h4 { margin: 2px 0 4px; font-size: 0.8em; text-transform: uppercase; letter-spacing: .04em; color: var(--navy); }
+  .card ul { margin: 4px 0; padding-left: 18px; }
+  .card p { margin: 4px 0; }
+  .stop { background: light-dark(#fdecec, #3a1717); border-left: 5px solid #dc2626; padding: 10px 14px;
+          border-radius: 6px; margin: 12px 0 4px; }
+  .stop strong:first-child { color: light-dark(#b91c1c, #fca5a5); }
+  .admin { background: light-dark(#eef7ee, #13301a); border-left: 5px solid #16a34a; padding: 10px 14px;
+           border-radius: 6px; margin: 12px 0 4px; }
+  .admin strong:first-child { color: light-dark(#15803d, #86efac); }
+  .watch { color: var(--muted); font-size: 0.95em; }
+  details { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
+  summary { cursor: pointer; }
+  nav ul { columns: 2; padding-left: 18px; }
+  @media (max-width: 560px) { nav ul { columns: 1; } }
+  @media print { .seg { break-inside: avoid; } a { color: inherit; } }
+</style>
+</head>
+<body>
+
+<h1>Gladstone DQ hands-on lab - facilitator guide</h1>
+<p>30-minute core lab, one simulated operator per attendee, then self-paced stretch and bonus labs.</p>
+<p class="banner"><strong>Internal - do not share with the customer.</strong> Everything you need to run the room is on this page, so you don't have to switch between guide pages while presenting.</p>
+
+<nav><ul>
+  <li><a href="#how">How to use this guide</a></li>
+  <li><a href="#before">Before the lab</a></li>
+  <li><a href="#email">Email to the admin (T-5)</a></li>
+  <li><a href="#run">Run of show</a></li>
+  <li><a href="#faults">Faults, tickets and fixes</a></li>
+  <li><a href="#recovery">Walk-ins and recovery</a></li>
+  <li><a href="#access">If you have access: faults and answer key</a></li>
+  <li><a href="#after">After the lab</a></li>
+</ul></nav>
+
+<h2 id="how">How to use this guide</h2>
+<ul>
+  <li>Each segment of the run of show has the same shape: <strong>Say</strong> (the opening line, read as written), then four cards - <strong>What we're doing</strong>, <strong>What we're using</strong>, <strong>Why it helps Gladstone</strong>, <strong>Real-world angle</strong> - to talk over while the room works.</li>
+  <li><span style="color:#dc2626;font-weight:600">Stop &amp; check</span> boxes are where you pause and check the room before moving on: what "done" looks like and how to unblock someone.</li>
+  <li><span style="color:#16a34a;font-weight:600">Admin action</span> boxes are for the customer's Snowflake admin (you probably won't have account access). Agree a signal with them beforehand - e.g. "inject now" in the meeting chat.</li>
+  <li>Attendees work in CoCo with their operator role. Every prompt is on the matching guide page, already filled in with their operator name.</li>
+</ul>
+
+<h2 id="before">Before the lab</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>When</th><th>Who</th><th>Do</th></tr></thead>
+<tbody>
+<tr><td>T-5 working days</td><td>You</td><td>Send the admin the email below and the guide URL. Send attendees <code>ATTENDEE_PREP.md</code>.</td></tr>
+<tr><td>T-5</td><td>You</td><td>Review the admin's pre-flight output. If <code>CORTEX_ENABLED_CROSS_REGION</code> is off, CoCo and the agent stretch may not work - agree the fallback (every step has a <em>Do it in Snowsight</em> route).</td></tr>
+<tr><td>T-3</td><td>Admin</td><td>Guide &rarr; <em>Lab setup (admin) &rarr; Setup</em>: enter attendees and email, decide whether to tick <em>Set each attendee's default role</em>, Generate SQL, Run All as ACCOUNTADMIN. Then any bonus setup scripts you're offering. Send you the output of <code>SELECT * FROM GLADSTONE_DQ_LAB.ADMIN.V_ROSTER;</code></td></tr>
+<tr><td>T-1</td><td>You + admin</td><td>15-minute dry run with one or two attendees. <code>V_ROSTER</code>: everyone <code>ASSIGNED</code>, recent <code>LAST_SUCCESS_LOGIN</code> (lags up to ~2 h), at least 2 <code>SPARE - free</code>. Walk the admin through the three admin actions below (inject, answer key, suspend).</td></tr>
+<tr><td>T-0, -15 min</td><td>Admin</td><td>Has a worksheet open as ACCOUNTADMIN (or <code>DQ_LAB_ADMIN</code>) with the <em>During the session</em> commands from the guide, and the answer key off the shared screen.</td></tr>
+</tbody></table></div>
+
+<h2 id="email">Email to the admin (T-5)</h2>
+<pre><code>Subject: Data quality hands-on lab - six quick questions before setup
+
+Hi &lt;name&gt;,
+
+Ahead of the data quality lab on &lt;date&gt;, could you help with six things so setup is a single script run?
+
+1. Who will run the setup script, and do they have ACCOUNTADMIN?
+2. The attendees' exact Snowflake user names (you'll type them into the guide's Setup tab).
+3. Is CoCo Desktop or CLI installed for each attendee, and who approves installs?
+4. The value of CORTEX_ENABLED_CROSS_REGION, and whether cross-region inference is allowed.
+5. The output of the pre-flight checks (section 6 of 00_admin_setup.sql) - three read-only statements.
+6. A verified email address for lab notifications.
+
+Setup itself: open the workshop guide, Lab setup (admin) &gt; Setup, enter the attendees and the
+email, click Generate SQL and Run All. By default nobody's default role or warehouse is changed;
+there's a tick box if you'd rather set them (teardown puts them back).
+
+During the lab we'll ask you to run two or three commands at set moments (inject the practice
+faults, show the fleet view, stop compute at the end) - they're on the guide's "During the
+session" tab. Could you join for the 30 minutes?
+
+Thanks,
+&lt;your name&gt;</code></pre>
+
+<h2 id="run">Run of show</h2>
+<p>Cast for the story: <strong>Sam</strong> (operator ops manager), <strong>Priya</strong> (Gladstone Customer Success), <strong>the attendee</strong> (on-call data engineer for one operator). The scenario: Gladstone runs one Snowflake database per gym operator, synced by Bifrost into Bronze tables, rolled up into REPORTING Dynamic Tables, and served to Nova (the AI assistant) through a semantic view. In the lab each attendee's schema <code>CUST_&lt;NAME&gt;</code> stands in for one operator's database.</p>
+
+<!-- ───────────────────────── -10 ───────────────────────── -->
+<div class="seg">
+<div class="seg-head"><span class="time">-10 to 0</span><h3>Arrival and connection</h3><span class="page">Guide: Getting started</span></div>
+<p class="say">"Welcome. Before anything else: open CoCo, type your operator name into the guide's sidebar, and switch to your lab role. Every prompt in the guide fills in your name automatically."</p>
+<pre><code>USE ROLE DQ_LAB_&lt;NAME&gt;; USE SECONDARY ROLES NONE; USE WAREHOUSE DQ_LAB_WH;</code></pre>
+<div class="grid">
+  <div class="card"><h4>What we're doing</h4><p>Connecting CoCo to the account with a role that owns exactly one operator - and nothing else.</p></div>
+  <div class="card"><h4>Why the role matters</h4><p><code>USE SECONDARY ROLES NONE</code> means CoCo can only use the operator role. It's how we prove isolation: you literally can't see a neighbour's operator.</p></div>
+</div>
+<div class="stop"><strong>Stop &amp; check:</strong> everyone has run the Getting started check prompt and sees role <code>DQ_LAB_&lt;NAME&gt;</code>, warehouse <code>DQ_LAB_WH</code>, 8 tables, 3 dynamic tables, task <code>TSK_BIFROST_MERGE</code> and <code>SV_OPERATOR_KPIS</code>.
+<br><span class="watch">Unblock: "not authorized" = still in their usual role (unless the admin ticked <em>set default role</em>, they must switch every new session). No user / no operator = walk-in, see <a href="#recovery">recovery</a>.</span></div>
+</div>
+
+<!-- ───────────────────────── 0 ───────────────────────── -->
+<div class="seg">
+<div class="seg-head"><span class="time">0</span><h3>Opener (60 seconds)</h3></div>
+<p class="say">"It's Monday at Gladstone. Each of you is on call for one operator on Nova. In 30 minutes, something will break in every one of them - and you'll find out before the operator does."</p>
+<div class="grid">
+  <div class="card"><h4>Frame the 30 minutes</h4><ul><li>Map the pipeline.</li><li>Put monitors on it.</li><li>Something breaks - diagnose it.</li><li>Contain it and alert.</li><li>Look across the whole fleet.</li></ul></div>
+  <div class="card"><h4>How they work</h4><p>Paste each prompt into CoCo. CoCo shows the SQL before it runs anything - <strong>read it, then approve</strong>. Behind? Every section has a <em>Behind? Run this</em> box with the exact SQL.</p></div>
+</div>
+</div>
+
+<!-- ───────────────────────── Session 1 ───────────────────────── -->
+<div class="seg">
+<div class="seg-head"><span class="time">0-4</span><h3>Session 1 - Meet your operator pipeline</h3><span class="page">Guide: Session 1 &middot; Prompts 1.1, 1.2</span></div>
+<p class="say">"First, learn the pipeline you're on call for, and what its numbers say on a good day."</p>
+<div class="grid">
+  <div class="card"><h4>What we're doing</h4><p>Asking CoCo to explain the operator's pipeline end to end and draw the lineage (Prompt 1.1), then asking Nova's semantic view the two questions operators ask most (Prompt 1.2). Nothing is changed.</p></div>
+  <div class="card"><h4>What we're using</h4><ul><li><strong>Tasks</strong> - <code>TSK_BIFROST_MERGE</code> simulates the Bifrost sync every minute.</li><li><strong>Dynamic Tables</strong> - the REPORTING layer, incremental refresh, 1-minute lag.</li><li><strong>Semantic view</strong> - the Gold layer Nova answers from, with a verified query.</li></ul></div>
+  <div class="card"><h4>Why it helps Gladstone</h4><p>You can't monitor what you can't see. With one database per operator, every investigation starts by mapping that operator's Bronze, REPORTING and Gold objects - CoCo does it from live metadata in seconds.</p></div>
+  <div class="card"><h4>Real-world angle</h4><ul><li><em>CS first response:</em> before escalating to engineering, CS asks CoCo to map the operator's pipeline and which definition Nova used.</li><li><em>Onboarding:</em> a new data engineer gets a plain-English map of any <code>CUST_*</code> database in minutes, instead of out-of-date docs.</li></ul></div>
+</div>
+<p><strong>Point out</strong> (don't explain yet): there are <strong>two different "active members" numbers</strong>. One counts members whose source status is ACTIVE; the verified query counts members who <em>paid in the last 35 days</em>. About 6% differ even on clean data. "Remember this number - it comes back in Session 3."</p>
+<div class="stop"><strong>Stop &amp; check (minute 4):</strong> hands up if you can name the 4 layers (Bronze, REPORTING, Gold/semantic view, Nova) and you've seen two numbers for active members. Ask one person to read theirs out.
+<br><span class="watch">If CoCo only gives one number: ask it to "show both definitions side by side" (it's in Prompt 1.2).</span></div>
+</div>
+
+<!-- ───────────────────────── Session 2 ───────────────────────── -->
+<div class="seg">
+<div class="seg-head"><span class="time">4-11</span><h3>Session 2 - Put monitors on it</h3><span class="page">Guide: Session 2 &middot; Prompts 2.1, 2.2</span></div>
+<p class="say">"Nothing is broken yet. Put monitors on your operator now."</p>
+<div class="grid">
+  <div class="card"><h4>What we're doing</h4><p>Attaching data metric functions to the Bronze tables and a REPORTING Dynamic Table, on a 5-minute schedule, and turning each rule into an <strong>expectation</strong> that passes or fails (Prompt 2.1). Then a Bronze-to-REPORTING lag check, and evaluating everything right now (Prompt 2.2).</p></div>
+  <div class="card"><h4>What we're using</h4><ul><li><strong>System DMFs</strong> - DUPLICATE_COUNT, NEGATIVE_COUNT, FRESHNESS, ROW_COUNT, REFERENTIAL_INTEGRITY_COUNT.</li><li><strong>Custom DMFs</strong> in a central <code>DQ_COMMON</code> schema - foreign-operator rows, active-but-left, reporting lag.</li><li><strong>Expectations</strong> - pass/fail rules on any DMF; results land in <code>SNOWFLAKE.LOCAL</code> views.</li><li><strong>Multi-table DMFs</strong> - compare a child with its parent, or Bronze with REPORTING.</li></ul></div>
+  <div class="card"><h4>Why it helps Gladstone</h4><p>The checks run <strong>serverless, inside Snowflake, next to the data</strong> - no extra warehouse, no external tool. Defined once in <code>DQ_COMMON</code>, the same checks attach to every operator database.</p></div>
+  <div class="card"><h4>Real-world angle</h4><ul><li><em>Replace homegrown checks</em> scheduled on a monitoring warehouse with DMFs that have history, pass/fail and notifications built in.</li><li><em>Cross-tenant leak detection:</em> FOREIGN_OPERATOR_ROWS on every operator database turns a GDPR incident into a 5-minute alert.</li><li><em>Bifrost sync SLAs:</em> FRESHNESS and lag give CS and engineering one shared definition of "late".</li><li><em>Payments integrity:</em> sign bugs and partial syncs caught before revenue dashboards move.</li></ul></div>
+</div>
+<p><strong>Talking point - expectations vs anomaly detection:</strong> anomaly detection on ROW_COUNT learns normal behaviour and needs about <strong>two weeks</strong> of history, so today it shows <code>TRAINING_IN_PROGRESS</code> - turn it on now so it works in two weeks. Expectations encode rules that must <em>always</em> hold and fail on the first bad run. Use both.</p>
+<div class="stop"><strong>Stop &amp; check (minute 10-11):</strong> everyone's <strong>7 expectations pass</strong> on clean data; FRESHNESS under 180 s. Ask the room: "Tell me when you're green." Don't move on until most hands are up - the faults only make sense if the monitors are in place.
+<br><span class="watch">Stragglers: point them to the <em>Behind? Run this</em> box on Session 2 - it attaches everything in one go.</span></div>
+</div>
+
+<!-- ───────────────────────── Inject ───────────────────────── -->
+<div class="seg">
+<div class="seg-head"><span class="time">11</span><h3>Break something in every operator</h3></div>
+<div class="admin"><strong>Admin action - inject faults:</strong> signal the admin ("inject now"). They run, as ACCOUNTADMIN or <code>DQ_LAB_ADMIN</code>:
+<pre><code>CALL GLADSTONE_DQ_LAB.ADMIN.INJECT_FAULTS('ALL');
+SELECT * FROM GLADSTONE_DQ_LAB.ADMIN.V_FLEET_ANSWER_KEY;   -- who got which fault; keep off the shared screen</code></pre>
+Ask the admin to send you the answer key privately (chat or screenshot) so you can help people in Session 3.</div>
+<p class="say">"I've just broken something in every operator - a different thing for each of you. Your operator is on the phone. Find out what happened."</p>
+<p>Each attendee's Session 3 page shows a Customer Success ticket in the operator's words (see <a href="#faults">the ticket list</a>). They don't know which fault they got.</p>
+</div>
+
+<!-- ───────────────────────── Session 3 ───────────────────────── -->
+<div class="seg">
+<div class="seg-head"><span class="time">11-20</span><h3>Session 3 - Diagnose a broken answer</h3><span class="page">Guide: Session 3 &middot; Prompts 3.1, 3.2</span></div>
+<div class="grid">
+  <div class="card"><h4>What we're doing</h4><p>Giving CoCo the complaint the way an operator would phrase it. It finds which check failed, the failing rows and the merge batch that caused it, whether the task and Dynamic Tables are healthy, which Nova metrics are affected - and writes a one-paragraph root cause (Prompt 3.1). Then it compares the two active-member definitions (Prompt 3.2).</p></div>
+  <div class="card"><h4>What we're using</h4><ul><li><strong>DQ results views</strong> - expectation status and results history in <code>SNOWFLAKE.LOCAL</code>.</li><li><strong>SYSTEM$DATA_METRIC_SCAN</strong> - returns the exact rows that made a system DMF fail.</li><li><strong>Task and Dynamic Table history</strong> - <code>TASK_HISTORY</code>, <code>DYNAMIC_TABLE_REFRESH_HISTORY</code>.</li><li><strong>CoCo's data-quality skill</strong> - follows the same evidence trail an engineer would.</li></ul></div>
+  <div class="card"><h4>Why it helps Gladstone</h4><p>This is the Customer Success escalation Gladstone handles by hand today. CoCo does it in minutes and shows its working - check, rows, batch, pipeline state, business impact.</p></div>
+  <div class="card"><h4>Real-world angle</h4><ul><li><em>CS escalation in five minutes:</em> the one-paragraph root cause is what goes back to the operator, with the batch id and the fix.</li><li><em>Bifrost incident review:</em> batch-level evidence shows whether a replay or partial sync hit one operator or many.</li><li><em>Verified query drift:</em> comparing a metric with its verified query catches semantic-layer drift no row-level check would.</li></ul></div>
+</div>
+<p><strong>Tell the room:</strong> scheduled checks run every 5 minutes - ask CoCo to evaluate the expectations now rather than wait.</p>
+<p><strong>Talking points as faults surface</strong> (use the answer key to pick who to call on):</p>
+<ul>
+  <li><strong>Merge task stalled:</strong> FRESHNESS fails but Bronze-to-REPORTING lag stays 0. REPORTING isn't behind its source - the <em>source</em> stopped. That's why you need both checks.</li>
+  <li><strong>Status drift:</strong> a semantic-layer problem. The gap between the two active-member numbers moved off ~6%. The agent answers from the verified query (paid in 35 days), the dashboard from status - two screens disagree.</li>
+  <li><strong>Tenant leak:</strong> not just a data bug - it's a personal-data incident. Row access by operator would hide it immediately (Bonus B2).</li>
+  <li><strong>Bifrost replay:</strong> the same batch applied twice - duplicates inflate active members. The batch id in <code>_SYNC_META__MERGE_BATCH</code> is the smoking gun.</li>
+</ul>
+<div class="stop"><strong>Stop &amp; check (minute 19-20):</strong> each person can say their fault in one sentence - <em>which check, which batch, which Nova metric</em>. Ask two or three people with different faults to read their root cause out. Then: "Compare with your neighbour - you each got a different one."
+<br><span class="watch">Stuck: check the answer key and nudge ("look at the merge batch history" / "is the task running?"). No failing checks at all: they may have joined late - the admin runs <code>INJECT_FAULTS('&lt;NAME&gt;')</code>.</span></div>
+</div>
+
+<!-- ───────────────────────── Session 4 ───────────────────────── -->
+<div class="seg">
+<div class="seg-head"><span class="time">20-26</span><h3>Session 4 - Contain and alert</h3><span class="page">Guide: Session 4 &middot; Prompts 4.1, 4.2</span></div>
+<p class="say">"Now stop it spreading, and make sure the next one emails you instead of the operator calling."</p>
+<p><strong>Role check first:</strong> "Confirm CoCo says your current role is <code>DQ_LAB_&lt;NAME&gt;</code>." The circuit-breaker task is owned by whoever creates it - a task created under someone's usual role can't suspend their operator's Dynamic Tables.</p>
+<div class="grid">
+  <div class="card"><h4>What we're doing</h4><p>Building a circuit-breaker task that runs every minute: if any Bronze expectation is failing it suspends the REPORTING Dynamic Tables, otherwise resumes them, and records what it did (Prompt 4.1). Then fixing the fault, watching the breaker close, and choosing which checks email (Prompt 4.2).</p></div>
+  <div class="card"><h4>What we're using</h4><ul><li><strong>Tasks</strong> with a Snowflake Scripting body and <code>SYSTEM$SET_RETURN_VALUE</code> - the breaker's state shows in task history.</li><li><strong>Dynamic Table suspend / resume</strong> - pause REPORTING while Bronze is failing.</li><li><strong>DQ notifications</strong> - enabled once per database; each check toggled on or off; email or webhook.</li></ul></div>
+  <div class="card"><h4>Why it helps Gladstone</h4><p>Detection alone still lets Nova serve a wrong number. Pausing REPORTING stops further bad batches reaching Nova - <strong>stale beats wrong</strong>. Notifying only on the critical checks avoids alert fatigue across hundreds of operators.</p></div>
+  <div class="card"><h4>Real-world angle</h4><ul><li><em>Protect Nova before month-end:</em> during a bad sync, Nova keeps answering from yesterday's good data while finance reports run.</li><li><em>Slack or Teams for on-call:</em> swap the email integration for a webhook so tenant-leak alerts page the right channel.</li><li><em>Per-tier alert policies:</em> enterprise operators get notifications on every invariant; smaller ones on the critical two.</li></ul></div>
+</div>
+<p><strong>Honest caveat to mention:</strong> with 5-minute checks and 1-minute REPORTING, the first bad batch can already be in before the breaker opens. Checks triggered on change (instead of a schedule) close that gap in production.</p>
+<div class="stop"><strong>Stop &amp; check (minute 25-26):</strong> the breaker's run history shows <strong>OPEN</strong>, then <strong>CLOSED: Bronze clean</strong> after the fix, and the <code>REPORTING__*</code> Dynamic Tables are active again. Notifications on only for <code>no_other_operator_rows</code> and <code>no_duplicate_members</code>.
+<br><span class="watch">Breaker never opens: task created under the wrong role, or not resumed. Breaker stays open: the fix didn't clear the check - re-evaluate expectations. Fixes per fault are in <a href="#faults">the table below</a> (and on the Session 4 page).</span></div>
+</div>
+
+<!-- ───────────────────────── Session 5 ───────────────────────── -->
+<div class="seg">
+<div class="seg-head"><span class="time">26-30</span><h3>Session 5 - Fleet view across operators</h3><span class="page">Guide: Session 5 &middot; Prompts 5.1, 5.2</span></div>
+<p class="say">"Priya's stand-up: which operators do we call first? Let's look at all of you at once."</p>
+<div class="admin"><strong>Admin action - fleet view on screen</strong> (or share yours if an attendee's CoCo shows it):
+<pre><code>SELECT * FROM GLADSTONE_DQ_LAB.ADMIN.V_FLEET_DQ_HEALTH;</code></pre>
+Optionally open Snowsight's data quality dashboard and show <em>Investigate with CoCo</em>.</div>
+<div class="grid">
+  <div class="card"><h4>What we're doing</h4><p>Asking which operators in the room are failing, grouped by type of failure with a likely root cause (Prompt 5.1), then asking CoCo to outline the production rollout to every operator database (Prompt 5.2).</p></div>
+  <div class="card"><h4>What we're using</h4><ul><li><strong>Results views</strong> - one results store across every database in the account.</li><li><strong>Secure summary view</strong> - owner's-rights view: attendees see the summary, not each other's data.</li><li><strong>Data quality dashboard</strong> in Snowsight - incidents and monitored schemas account-wide.</li></ul></div>
+  <div class="card"><h4>Why it helps Gladstone</h4><p>Hundreds of operator databases - nobody can open each one. The same results that power one operator's checks roll up into one fleet view: the start of a Gladstone-wide data quality SLA.</p></div>
+  <div class="card"><h4>Real-world angle</h4><ul><li><em>Daily fleet triage:</em> Platform reviews failing operators each morning; repeat offenders get a Bifrost or source-system ticket.</li><li><em>Operator QBRs:</em> data quality pass rate per operator becomes a KPI.</li><li><em>Release safety:</em> after a Bifrost or REPORTING release, the fleet view shows within one schedule whether any operator regressed.</li></ul></div>
+</div>
+<div class="stop"><strong>Stop &amp; check (minute 29):</strong> the fleet view shows <strong>six different failure signatures</strong> (with six or more attendees), and each attendee's own operator now shows 0 failing checks. Ask: "What would you call operator X about?"</div>
+</div>
+
+<!-- ───────────────────────── Close ───────────────────────── -->
+<div class="seg">
+<div class="seg-head"><span class="time">30</span><h3>Close</h3></div>
+<p class="say">"By Priya's stand-up every operator in the room is green again, and she called the affected operators before they called her. Next: the same checks, deployed to every operator database by DCM - that's the scaling page and Bonus B3."</p>
+<div class="grid">
+  <div class="card"><h4>Recap in one breath</h4><p>Map it (CoCo + lineage), monitor it (DMFs + expectations, serverless), diagnose it (results views + failing rows + history), contain it (circuit breaker + notifications), see the fleet (one results store).</p></div>
+  <div class="card"><h4>Where to go next</h4><ul><li><strong>Stretch:</strong> a Nova agent on the semantic view, a scheduled CoCo DQ report, checking a migrated operator.</li><li><strong>Bonus B1</strong> budgets and resource monitors &middot; <strong>B2</strong> governance and GDPR &middot; <strong>B3</strong> DevOps with DCM Projects.</li><li>Share <code>LEAVE_BEHIND.md</code>.</li></ul></div>
+</div>
+<div class="admin"><strong>Admin action - stop compute</strong> straight after (unless the room stays for bonus labs):
+<pre><code>CALL GLADSTONE_DQ_LAB.ADMIN.SUSPEND_ALL();</code></pre></div>
+</div>
+
+<h2 id="faults">Faults, tickets and fixes</h2>
+<p>One fault per operator by setup order, repeating every six (spares included). The ticket is what the attendee sees on their Session 3 page.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>#</th><th>Fault</th><th>CS ticket (operator's words)</th><th>Detected by (dry-run value)</th><th>Fix (in the attendee's schema)</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Bifrost replay - a batch applied twice</td><td>CS-2101 "Nova says we have more active members than our front desk can count."</td><td><code>DUPLICATE_COUNT</code> (150)</td><td><code>DELETE FROM MEMBERS__MEMBER WHERE _batch_id = 'B-REPLAY-01';</code></td></tr>
+<tr><td>2</td><td>Merge task stalled</td><td>CS-2102 "Nothing in Nova has changed since this morning."</td><td><code>FRESHNESS</code> (~408 s), lag 0</td><td><code>ALTER TASK TSK_BIFROST_MERGE RESUME;</code></td></tr>
+<tr><td>3</td><td>Refund sign flip</td><td>CS-2103 "Today's revenue in Nova is far too low."</td><td><code>NEGATIVE_COUNT</code> (40)</td><td><code>DELETE FROM SYSTEM__PAYMENT WHERE _batch_id = 'B-SIGNBUG-01';</code></td></tr>
+<tr><td>4</td><td>Orphan attendance</td><td>CS-2104 "Some classes show more than 100% attendance."</td><td><code>REFERENTIAL_INTEGRITY_COUNT</code> (60)</td><td><code>DELETE FROM SYSTEM__ATTENDANCE WHERE booking_id LIKE 'BK-GHOST-%';</code></td></tr>
+<tr><td>5</td><td>Tenant leak</td><td>CS-2105 "I can see members who aren't ours."</td><td><code>FOREIGN_OPERATOR_ROWS</code> (50)</td><td><code>DELETE FROM MEMBERS__MEMBER WHERE operator_id &lt;&gt; 'CUST_&lt;NAME&gt;';</code> - then treat as a personal-data incident</td></tr>
+<tr><td>6</td><td>Status drift</td><td>CS-2106 "Two of your screens disagree on active members."</td><td><code>ACTIVE_BUT_LEFT</code> (292)</td><td><code>UPDATE MEMBERS__MEMBER SET status = 'CANCELLED' WHERE status = 'ACTIVE' AND left_on IS NOT NULL;</code></td></tr>
+</tbody></table></div>
+<p>The full expected SQL for Sessions 2-4 is on the guide's <em>Lab setup &rarr; During the session</em> tab (core answer key) - the admin can open it if someone needs the exact statements.</p>
+
+<h2 id="recovery">Walk-ins and recovery</h2>
+<p>All of these are admin actions (ACCOUNTADMIN or <code>DQ_LAB_ADMIN</code>); they're also on the guide's <em>Walk-ins</em> and <em>During the session</em> tabs.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Situation</th><th>Admin runs</th><th>You tell the attendee</th></tr></thead>
+<tbody>
+<tr><td>Walk-in with a Snowflake user</td><td><code>CALL GLADSTONE_DQ_LAB.ADMIN.CLAIM_SPARE('&lt;USER&gt;');</code></td><td>Their operator name (e.g. SPARE01) - type it in the sidebar, <code>USE ROLE DQ_LAB_SPARE01;</code></td></tr>
+<tr><td>Walk-in arrives after faults were injected</td><td><code>CALL GLADSTONE_DQ_LAB.ADMIN.INJECT_FAULTS('&lt;NAME&gt;');</code> once they finish Session 2</td><td>"Your fault is in - start Session 3."</td></tr>
+<tr><td>No Snowflake user</td><td>Temporary user if policy allows, then claim a spare</td><td>Otherwise pair with a neighbour and read along</td></tr>
+<tr><td>Attendee broke their operator</td><td><code>CALL GLADSTONE_DQ_LAB.ADMIN.RESET_ATTENDEE('&lt;NAME&gt;');</code> then optionally <code>INJECT_FAULTS('&lt;NAME&gt;')</code></td><td>Redo Session 2 (the Behind? box is quickest)</td></tr>
+<tr><td>"Not authorized" errors</td><td>-</td><td><code>USE ROLE DQ_LAB_&lt;NAME&gt;;</code></td></tr>
+<tr><td>Notification emails flood</td><td><code>ALTER DATABASE GLADSTONE_DQ_LAB UNSET DATA_QUALITY_MONITORING_SETTINGS;</code></td><td>-</td></tr>
+<tr><td>Running low on spares</td><td><code>CALL GLADSTONE_DQ_LAB.ADMIN.SETUP_SPARES(2);</code></td><td>-</td></tr>
+</tbody></table></div>
+
+<h2 id="access">If you have access: fault injection and answer key</h2>
+<p>The admin normally runs these. If you're given <code>DQ_LAB_ADMIN</code> (or ACCOUNTADMIN) on the day, run them yourself from one worksheet.</p>
+<pre><code>USE ROLE DQ_LAB_ADMIN;          -- or ACCOUNTADMIN
+USE WAREHOUSE DQ_LAB_WH;
+
+-- Minute 11: one fault per operator (spares included), by setup order
+CALL GLADSTONE_DQ_LAB.ADMIN.INJECT_FAULTS('ALL');
+
+-- Who got which fault, with expected detection (keep off the shared screen)
+SELECT * FROM GLADSTONE_DQ_LAB.ADMIN.V_FLEET_ANSWER_KEY;
+
+-- One operator only (late joiner, or after a reset)
+CALL GLADSTONE_DQ_LAB.ADMIN.INJECT_FAULTS('&lt;NAME&gt;');
+
+-- Session 5 fleet view
+SELECT * FROM GLADSTONE_DQ_LAB.ADMIN.V_FLEET_DQ_HEALTH;
+
+-- Fresh start for one attendee (keeps their user binding)
+CALL GLADSTONE_DQ_LAB.ADMIN.RESET_ATTENDEE('&lt;NAME&gt;');
+
+-- End of session
+CALL GLADSTONE_DQ_LAB.ADMIN.SUSPEND_ALL();</code></pre>
+<details>
+<summary><strong>Core answer key (Sessions 2-4)</strong> - what CoCo is expected to generate; replace OPERATOR01 with the attendee's operator name</summary>
+<pre><code>-- =============================================================================
+-- Gladstone MRM | Data Quality HOL | answer_key_core.sql
+-- What CoCo is expected to generate in Sessions 2-4 (facilitator reference and
+-- &quot;Behind? run this&quot; fallback). Replace OPERATOR01 with the attendee&#x27;s operator name.
+--
+-- &gt;&gt;&gt; SET YOUR ROLE FIRST. The lab does not change anyone&#x27;s default role, so every
+-- &gt;&gt;&gt; new worksheet / CoCo session starts in the user&#x27;s own role. Run these three
+-- &gt;&gt;&gt; lines at the start, and again after any reconnect or new worksheet.
+-- =============================================================================
+USE ROLE DQ_LAB_OPERATOR01;
+USE SECONDARY ROLES NONE;      -- only the operator role&#x27;s privileges (proves isolation)
+USE WAREHOUSE DQ_LAB_WH;
+USE SCHEMA GLADSTONE_DQ_LAB.CUST_OPERATOR01;
+
+-- ---------------------------------------------------------------------------
+-- Session 2.1  Monitors (system DMFs) - schedule every 5 minutes for the lab
+-- (production: TRIGGER_ON_CHANGES on Bronze, or align to the DT target lag)
+-- ---------------------------------------------------------------------------
+ALTER TABLE MEMBERS__MEMBER     SET DATA_METRIC_SCHEDULE = &#x27;5 MINUTE&#x27;;
+ALTER TABLE SYSTEM__PAYMENT     SET DATA_METRIC_SCHEDULE = &#x27;5 MINUTE&#x27;;
+ALTER TABLE SYSTEM__ATTENDANCE  SET DATA_METRIC_SCHEDULE = &#x27;5 MINUTE&#x27;;
+ALTER DYNAMIC TABLE REPORTING__DAILY_REVENUE SET DATA_METRIC_SCHEDULE = &#x27;5 MINUTE&#x27;;
+
+-- Volume + freshness with anomaly detection (needs ~2 weeks of history to start flagging;
+-- shows TRAINING_IN_PROGRESS during the lab - this is the long-term safety net).
+ALTER TABLE SYSTEM__PAYMENT ADD DATA METRIC FUNCTION SNOWFLAKE.CORE.ROW_COUNT ON () ANOMALY_DETECTION = TRUE;
+
+-- ---------------------------------------------------------------------------
+-- Session 2.2  Expectations = the invariants that must always hold (fire today)
+-- ---------------------------------------------------------------------------
+ALTER TABLE MEMBERS__MEMBER ADD DATA METRIC FUNCTION SNOWFLAKE.CORE.DUPLICATE_COUNT ON (member_id)
+  EXPECTATION no_duplicate_members (VALUE = 0);
+ALTER TABLE MEMBERS__MEMBER ADD DATA METRIC FUNCTION GLADSTONE_DQ_LAB.DQ_COMMON.FOREIGN_OPERATOR_ROWS ON (operator_id)
+  EXPECTATION no_other_operator_rows (VALUE = 0);
+ALTER TABLE MEMBERS__MEMBER ADD DATA METRIC FUNCTION GLADSTONE_DQ_LAB.DQ_COMMON.ACTIVE_BUT_LEFT ON (status, left_on)
+  EXPECTATION no_active_leavers (VALUE = 0);
+ALTER TABLE SYSTEM__PAYMENT ADD DATA METRIC FUNCTION SNOWFLAKE.CORE.NEGATIVE_COUNT ON (amount)
+  EXPECTATION no_negative_amounts (VALUE = 0);
+ALTER TABLE SYSTEM__PAYMENT ADD DATA METRIC FUNCTION SNOWFLAKE.CORE.FRESHNESS ON ()
+  EXPECTATION payments_fresh_3min (VALUE &lt; 180);
+ALTER TABLE SYSTEM__ATTENDANCE ADD DATA METRIC FUNCTION SNOWFLAKE.CORE.REFERENTIAL_INTEGRITY_COUNT
+  ON (booking_id, TABLE(GLADSTONE_DQ_LAB.CUST_OPERATOR01.SYSTEM__BOOKING(booking_id)))
+  EXPECTATION no_orphan_checkins (VALUE = 0);
+ALTER DYNAMIC TABLE REPORTING__DAILY_REVENUE ADD DATA METRIC FUNCTION GLADSTONE_DQ_LAB.DQ_COMMON.REPORTING_LAG_SECONDS
+  ON (last_loaded_at, TABLE(GLADSTONE_DQ_LAB.CUST_OPERATOR01.SYSTEM__PAYMENT(_loaded_at)))
+  EXPECTATION reporting_within_5min (VALUE &lt; 300);
+
+-- Checkpoint: what is attached?
+SELECT metric_name, ref_arguments, schedule, schedule_status
+FROM TABLE(INFORMATION_SCHEMA.DATA_METRIC_FUNCTION_REFERENCES(
+  REF_ENTITY_NAME =&gt; &#x27;GLADSTONE_DQ_LAB.CUST_OPERATOR01.MEMBERS__MEMBER&#x27;, REF_ENTITY_DOMAIN =&gt; &#x27;TABLE&#x27;));
+
+-- Run every expectation now (no waiting for the schedule) - single-table, non-grouped expectations
+SELECT * FROM TABLE(SYSTEM$EVALUATE_DATA_QUALITY_EXPECTATIONS(REF_ENTITY_NAME =&gt; &#x27;GLADSTONE_DQ_LAB.CUST_OPERATOR01.MEMBERS__MEMBER&#x27;));
+SELECT * FROM TABLE(SYSTEM$EVALUATE_DATA_QUALITY_EXPECTATIONS(REF_ENTITY_NAME =&gt; &#x27;GLADSTONE_DQ_LAB.CUST_OPERATOR01.SYSTEM__PAYMENT&#x27;));
+
+-- ---------------------------------------------------------------------------
+-- Session 3  Diagnose (what CoCo&#x27;s root-cause workflow queries)
+-- ---------------------------------------------------------------------------
+-- Latest failing expectations for my operator
+SELECT table_name, metric_name, expectation_name, value, measurement_time
+FROM SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_EXPECTATION_STATUS
+WHERE table_database = &#x27;GLADSTONE_DQ_LAB&#x27; AND table_schema = &#x27;CUST_OPERATOR01&#x27; AND expectation_violated
+QUALIFY ROW_NUMBER() OVER (PARTITION BY table_name, expectation_name ORDER BY measurement_time DESC) = 1;
+
+-- Which rows? (failing-row drill down for a system DMF)
+SELECT * FROM TABLE(SYSTEM$DATA_METRIC_SCAN(
+  REF_ENTITY_NAME =&gt; &#x27;GLADSTONE_DQ_LAB.CUST_OPERATOR01.MEMBERS__MEMBER&#x27;,
+  METRIC_NAME     =&gt; &#x27;SNOWFLAKE.CORE.DUPLICATE_COUNT&#x27;,
+  ARGUMENT_NAME   =&gt; &#x27;member_id&#x27;)) LIMIT 20;
+
+-- Which batch caused it?
+SELECT batch_id, table_name, COUNT(*) AS times_applied, MIN(loaded_at), MAX(loaded_at)
+FROM _SYNC_META__MERGE_BATCH GROUP BY 1, 2 HAVING COUNT(*) &gt; 1;
+SELECT _batch_id, COUNT(*) FROM SYSTEM__PAYMENT WHERE amount &lt; 0 GROUP BY 1;
+
+-- Is the pipeline running?
+SELECT name, state, scheduled_time, completed_time, error_message
+FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(TASK_NAME =&gt; &#x27;TSK_BIFROST_MERGE&#x27;, RESULT_LIMIT =&gt; 10))
+ORDER BY scheduled_time DESC;
+SHOW TASKS LIKE &#x27;TSK_BIFROST_MERGE&#x27;;
+SELECT name, state, refresh_action, refresh_trigger, data_timestamp, state_message
+FROM TABLE(INFORMATION_SCHEMA.DYNAMIC_TABLE_REFRESH_HISTORY(NAME_PREFIX =&gt; &#x27;GLADSTONE_DQ_LAB.CUST_OPERATOR01.&#x27;))
+ORDER BY data_timestamp DESC LIMIT 20;
+
+-- Nova&#x27;s two answers to &quot;how many active members?&quot;
+SELECT * FROM SEMANTIC_VIEW(SV_OPERATOR_KPIS METRICS am.active_members, ms.paid_members_35d);
+
+-- ---------------------------------------------------------------------------
+-- Session 4  Contain + alert
+-- &gt;&gt;&gt; ROLE CHECK: the circuit-breaker task is owned by whichever role creates it.
+-- &gt;&gt;&gt; Confirm SELECT CURRENT_ROLE() = DQ_LAB_OPERATOR01 before CREATE TASK.
+-- ---------------------------------------------------------------------------
+-- Circuit breaker: suspend REPORTING while any Bronze invariant is violated; resume when clean.
+CREATE OR REPLACE TASK TSK_DQ_CIRCUIT_BREAKER
+  WAREHOUSE = DQ_LAB_WH SCHEDULE = &#x27;1 MINUTE&#x27;
+AS
+EXECUTE IMMEDIATE $$
+DECLARE
+  bad NUMBER;
+  msg VARCHAR;
+BEGIN
+  SELECT COUNT(*) INTO :bad FROM (
+    SELECT expectation_violated
+    FROM SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_EXPECTATION_STATUS
+    WHERE table_database = &#x27;GLADSTONE_DQ_LAB&#x27; AND table_schema = &#x27;CUST_OPERATOR01&#x27;
+      AND table_name IN (&#x27;MEMBERS__MEMBER&#x27;, &#x27;SYSTEM__PAYMENT&#x27;, &#x27;SYSTEM__ATTENDANCE&#x27;)
+    QUALIFY ROW_NUMBER() OVER (PARTITION BY table_name, expectation_name ORDER BY measurement_time DESC) = 1)
+  WHERE expectation_violated;
+  IF (bad &gt; 0) THEN
+    ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_OPERATOR01.REPORTING__ACTIVE_MEMBERS SUSPEND;
+    ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_OPERATOR01.REPORTING__DAILY_REVENUE SUSPEND;
+    -- SYSTEM$SET_RETURN_VALUE needs a plain variable or literal, not an expression
+    msg := &#x27;OPEN: &#x27; || :bad || &#x27; failing Bronze check(s) - REPORTING refresh paused&#x27;;
+    CALL SYSTEM$SET_RETURN_VALUE(:msg);
+    RETURN &#x27;OPEN&#x27;;
+  ELSE
+    ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_OPERATOR01.REPORTING__ACTIVE_MEMBERS RESUME;
+    ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_OPERATOR01.REPORTING__DAILY_REVENUE RESUME;
+    CALL SYSTEM$SET_RETURN_VALUE(&#x27;CLOSED: Bronze clean&#x27;);
+    RETURN &#x27;CLOSED&#x27;;
+  END IF;
+END;
+$$;
+ALTER TASK TSK_DQ_CIRCUIT_BREAKER RESUME;
+
+-- Notifications are enabled for the whole lab database by the admin (00_admin_setup.sql).
+-- Each operator chooses which checks notify:
+ALTER TABLE MEMBERS__MEMBER MODIFY DATA METRIC FUNCTION SNOWFLAKE.CORE.DUPLICATE_COUNT ON (member_id)
+  SET DATA_QUALITY_NOTIFICATION = TRUE;
+
+-- Fix (example for the Bifrost replay): remove the replayed batch, circuit breaker closes, DTs resume
+DELETE FROM MEMBERS__MEMBER WHERE _batch_id = &#x27;B-REPLAY-01&#x27;;</code></pre>
+</details>
+
+<h2 id="after">After the lab</h2>
+<ul>
+<li>Admin: <code>CALL GLADSTONE_DQ_LAB.ADMIN.SUSPEND_ALL();</code> immediately after the session.</li>
+<li>When bonus labs are done, the admin runs <code>sql/98_teardown.sql</code> (removes everything, including bonuses and spares, and restores attendees' default role and warehouse if setup changed them). Temporary walk-in users are dropped by hand.</li>
+<li>Follow up with <code>LEAVE_BEHIND.md</code> and the agreed next steps.</li>
+</ul>
+
+</body>
+</html>

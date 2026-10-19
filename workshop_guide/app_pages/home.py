@@ -9,8 +9,8 @@ from content import story
 _STATIC = Path(__file__).parent.parent / "static"
 
 with st.container(horizontal=True, vertical_alignment="center", gap="large"):
-    st.image(str(_STATIC / "gladstone_logo.jpg"), width=110, alt="Gladstone logo")
-    st.image(str(_STATIC / "snowflake_full_logo.png"), width=180, alt="Snowflake logo")
+    st.image(str(_STATIC / "gladstone_logo.jpg"), width=110)
+    st.image(str(_STATIC / "snowflake_full_logo.png"), width=180)
 
 st.title("Trust Nova's answers")
 st.markdown("Data quality and monitoring for Gladstone MRM's Dynamic Table, Task, semantic layer and agent pipelines - using only prompts in **CoCo**.")
@@ -75,7 +75,7 @@ digraph {
   src -> task -> bronze -> dt -> sv -> agent;
   dq -> bronze [style=dashed, arrowhead=none]; dq -> dt [style=dashed, arrowhead=none];
 }
-""", alt="Diagram of the operator pipeline: source, merge task, Bronze, REPORTING dynamic tables, semantic view, agent, with data metric functions on Bronze and REPORTING")
+""")
 
 st.markdown("#### :material/checklist: What this lab answers")
 st.caption("Themes from Gladstone's Nova discovery and workshop-planning conversations.")

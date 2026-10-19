@@ -26,7 +26,7 @@ for f in ["bonus/B1_teardown.sql", "bonus/B2_teardown.sql", "bonus/B3_teardown.s
 
 st.markdown("#### :material/rule: After teardown")
 st.markdown("""
-- Attendees' original `DEFAULT_ROLE` and `DEFAULT_WAREHOUSE` are restored automatically (step 2 of `98_teardown.sql`). Users set up with `set_defaults: false` were never changed.
+- If the setup script was generated with *Set each attendee's default role*, their original `DEFAULT_ROLE` and `DEFAULT_WAREHOUSE` are restored automatically (step 2 of `98_teardown.sql`). Otherwise they were never changed.
 - Temporary walk-in users, if you created any, are not dropped by the script: `DROP USER <u>;`
 - Dropped data stays in Time Travel and then Fail-safe for the retention period before it is purged. All lab data is synthetic.
 - Attendee laptops keep their local DCM project folders (Bonus B3).

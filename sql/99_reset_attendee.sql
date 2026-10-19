@@ -6,10 +6,10 @@
 USE ROLE ACCOUNTADMIN;
 USE WAREHOUSE DQ_LAB_WH;
 
-CALL GLADSTONE_DQ_LAB.ADMIN.RESET_ATTENDEE('NIELS');      -- <- attendee short name
+CALL GLADSTONE_DQ_LAB.ADMIN.RESET_ATTENDEE('OPERATOR01');      -- <- attendee short name
 
 -- Optional: re-inject that attendee's fault (same slot -> same fault)
--- CALL GLADSTONE_DQ_LAB.ADMIN.INJECT_FAULTS('NIELS');
+-- CALL GLADSTONE_DQ_LAB.ADMIN.INJECT_FAULTS('OPERATOR01');
 
 -- Reset the whole room back to "start of Session 3" (faults re-applied to everyone):
 -- CALL GLADSTONE_DQ_LAB.ADMIN.INJECT_FAULTS('ALL');

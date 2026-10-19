@@ -48,9 +48,9 @@ SESSION_PROMPTS = {
 
 # ── operator (attendee) context ──────────────────────────────────────────────
 def operator_name() -> str:
-    raw = st.session_state.get("operator_name") or "NIELS"
+    raw = st.session_state.get("operator_name") or "OPERATOR01"
     clean = "".join(c for c in raw.upper() if c.isalnum() or c == "_")
-    return clean or "NIELS"
+    return clean or "OPERATOR01"
 
 
 def ctx() -> dict:
@@ -110,6 +110,20 @@ def render_execution_context():
         ":material/web: **Also possible in Snowsight** - open *Do it in Snowsight* under any step.",
         icon=None,
     )
+    render_role_callout()
+
+
+def render_role_callout(when: str = "Before you paste any prompt on this page"):
+    """The lab never changes users' DEFAULT_ROLE, so every page reminds attendees to switch role themselves."""
+    c = ctx()
+    with st.container(border=True):
+        st.warning(f"**Set your role.** {when}, check CoCo (or your worksheet) is using role "
+                   f"**`{c['ROLE']}`** and warehouse **`DQ_LAB_WH`**. Unless your admin set it as your default, "
+                   "a new CoCo session, reconnect or new worksheet starts in your usual role.",
+                   icon=":material/badge:")
+        st.code(f"USE ROLE {c['ROLE']};\nUSE SECONDARY ROLES NONE;\nUSE WAREHOUSE DQ_LAB_WH;\n"
+                "SELECT CURRENT_ROLE(), CURRENT_WAREHOUSE();", language="sql")
+        st.caption(f"In CoCo you can also just ask: *\"use role {c['ROLE']} and warehouse DQ_LAB_WH\"*.")
 
 
 def render_what_why(what: str, why: str):

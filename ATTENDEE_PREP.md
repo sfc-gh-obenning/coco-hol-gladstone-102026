@@ -11,7 +11,7 @@
    Step-by-step instructions, download links and fixes are on the guide's **Install CoCo Desktop and CLI** page
    (Desktop: https://www.snowflake.com/en/product/snowflake-coco/downloads/ - CLI: `curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh | sh`).
 3. **Run this test prompt in CoCo:** *"What is my current user, role and warehouse? Run select current_user(), current_role(), current_warehouse()."* If you get an answer back, CoCo is working.
-4. **Confirm your operator name** with the facilitator (for example `NIELS`). It names your schema `CUST_<NAME>` and your role `DQ_LAB_<NAME>`.
+4. **Confirm your operator name** with the facilitator (for example `OPERATOR01`). It names your schema `CUST_<NAME>` and your role `DQ_LAB_<NAME>`. Unless your admin has made it your default, switch to it yourself at the start of the lab: `USE ROLE DQ_LAB_<NAME>; USE WAREHOUSE DQ_LAB_WH;`
 5. **Bonus B3 only (optional):** install Snowflake CLI 3.17 or later (`snow --version`) and make sure you can reach GitHub.
 
 **On the day (5 minutes before)**

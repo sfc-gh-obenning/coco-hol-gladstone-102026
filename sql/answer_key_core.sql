@@ -1,11 +1,16 @@
 -- =============================================================================
 -- Gladstone MRM | Data Quality HOL | answer_key_core.sql
 -- What CoCo is expected to generate in Sessions 2-4 (facilitator reference and
--- "Behind? run this" fallback). Replace CUST_NIELS with the attendee's schema.
--- Run as the attendee role DQ_LAB_<NAME>.
+-- "Behind? run this" fallback). Replace OPERATOR01 with the attendee's operator name.
+--
+-- >>> SET YOUR ROLE FIRST. The lab does not change anyone's default role, so every
+-- >>> new worksheet / CoCo session starts in the user's own role. Run these three
+-- >>> lines at the start, and again after any reconnect or new worksheet.
 -- =============================================================================
+USE ROLE DQ_LAB_OPERATOR01;
+USE SECONDARY ROLES NONE;      -- only the operator role's privileges (proves isolation)
 USE WAREHOUSE DQ_LAB_WH;
-USE SCHEMA GLADSTONE_DQ_LAB.CUST_NIELS;
+USE SCHEMA GLADSTONE_DQ_LAB.CUST_OPERATOR01;
 
 -- ---------------------------------------------------------------------------
 -- Session 2.1  Monitors (system DMFs) - schedule every 5 minutes for the lab
@@ -34,20 +39,20 @@ ALTER TABLE SYSTEM__PAYMENT ADD DATA METRIC FUNCTION SNOWFLAKE.CORE.NEGATIVE_COU
 ALTER TABLE SYSTEM__PAYMENT ADD DATA METRIC FUNCTION SNOWFLAKE.CORE.FRESHNESS ON ()
   EXPECTATION payments_fresh_3min (VALUE < 180);
 ALTER TABLE SYSTEM__ATTENDANCE ADD DATA METRIC FUNCTION SNOWFLAKE.CORE.REFERENTIAL_INTEGRITY_COUNT
-  ON (booking_id, TABLE(GLADSTONE_DQ_LAB.CUST_NIELS.SYSTEM__BOOKING(booking_id)))
+  ON (booking_id, TABLE(GLADSTONE_DQ_LAB.CUST_OPERATOR01.SYSTEM__BOOKING(booking_id)))
   EXPECTATION no_orphan_checkins (VALUE = 0);
 ALTER DYNAMIC TABLE REPORTING__DAILY_REVENUE ADD DATA METRIC FUNCTION GLADSTONE_DQ_LAB.DQ_COMMON.REPORTING_LAG_SECONDS
-  ON (last_loaded_at, TABLE(GLADSTONE_DQ_LAB.CUST_NIELS.SYSTEM__PAYMENT(_loaded_at)))
+  ON (last_loaded_at, TABLE(GLADSTONE_DQ_LAB.CUST_OPERATOR01.SYSTEM__PAYMENT(_loaded_at)))
   EXPECTATION reporting_within_5min (VALUE < 300);
 
 -- Checkpoint: what is attached?
 SELECT metric_name, ref_arguments, schedule, schedule_status
 FROM TABLE(INFORMATION_SCHEMA.DATA_METRIC_FUNCTION_REFERENCES(
-  REF_ENTITY_NAME => 'GLADSTONE_DQ_LAB.CUST_NIELS.MEMBERS__MEMBER', REF_ENTITY_DOMAIN => 'TABLE'));
+  REF_ENTITY_NAME => 'GLADSTONE_DQ_LAB.CUST_OPERATOR01.MEMBERS__MEMBER', REF_ENTITY_DOMAIN => 'TABLE'));
 
 -- Run every expectation now (no waiting for the schedule) - single-table, non-grouped expectations
-SELECT * FROM TABLE(SYSTEM$EVALUATE_DATA_QUALITY_EXPECTATIONS(REF_ENTITY_NAME => 'GLADSTONE_DQ_LAB.CUST_NIELS.MEMBERS__MEMBER'));
-SELECT * FROM TABLE(SYSTEM$EVALUATE_DATA_QUALITY_EXPECTATIONS(REF_ENTITY_NAME => 'GLADSTONE_DQ_LAB.CUST_NIELS.SYSTEM__PAYMENT'));
+SELECT * FROM TABLE(SYSTEM$EVALUATE_DATA_QUALITY_EXPECTATIONS(REF_ENTITY_NAME => 'GLADSTONE_DQ_LAB.CUST_OPERATOR01.MEMBERS__MEMBER'));
+SELECT * FROM TABLE(SYSTEM$EVALUATE_DATA_QUALITY_EXPECTATIONS(REF_ENTITY_NAME => 'GLADSTONE_DQ_LAB.CUST_OPERATOR01.SYSTEM__PAYMENT'));
 
 -- ---------------------------------------------------------------------------
 -- Session 3  Diagnose (what CoCo's root-cause workflow queries)
@@ -55,12 +60,12 @@ SELECT * FROM TABLE(SYSTEM$EVALUATE_DATA_QUALITY_EXPECTATIONS(REF_ENTITY_NAME =>
 -- Latest failing expectations for my operator
 SELECT table_name, metric_name, expectation_name, value, measurement_time
 FROM SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_EXPECTATION_STATUS
-WHERE table_database = 'GLADSTONE_DQ_LAB' AND table_schema = 'CUST_NIELS' AND expectation_violated
+WHERE table_database = 'GLADSTONE_DQ_LAB' AND table_schema = 'CUST_OPERATOR01' AND expectation_violated
 QUALIFY ROW_NUMBER() OVER (PARTITION BY table_name, expectation_name ORDER BY measurement_time DESC) = 1;
 
 -- Which rows? (failing-row drill down for a system DMF)
 SELECT * FROM TABLE(SYSTEM$DATA_METRIC_SCAN(
-  REF_ENTITY_NAME => 'GLADSTONE_DQ_LAB.CUST_NIELS.MEMBERS__MEMBER',
+  REF_ENTITY_NAME => 'GLADSTONE_DQ_LAB.CUST_OPERATOR01.MEMBERS__MEMBER',
   METRIC_NAME     => 'SNOWFLAKE.CORE.DUPLICATE_COUNT',
   ARGUMENT_NAME   => 'member_id')) LIMIT 20;
 
@@ -75,7 +80,7 @@ FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(TASK_NAME => 'TSK_BIFROST_MERGE', RES
 ORDER BY scheduled_time DESC;
 SHOW TASKS LIKE 'TSK_BIFROST_MERGE';
 SELECT name, state, refresh_action, refresh_trigger, data_timestamp, state_message
-FROM TABLE(INFORMATION_SCHEMA.DYNAMIC_TABLE_REFRESH_HISTORY(NAME_PREFIX => 'GLADSTONE_DQ_LAB.CUST_NIELS.'))
+FROM TABLE(INFORMATION_SCHEMA.DYNAMIC_TABLE_REFRESH_HISTORY(NAME_PREFIX => 'GLADSTONE_DQ_LAB.CUST_OPERATOR01.'))
 ORDER BY data_timestamp DESC LIMIT 20;
 
 -- Nova's two answers to "how many active members?"
@@ -83,6 +88,8 @@ SELECT * FROM SEMANTIC_VIEW(SV_OPERATOR_KPIS METRICS am.active_members, ms.paid_
 
 -- ---------------------------------------------------------------------------
 -- Session 4  Contain + alert
+-- >>> ROLE CHECK: the circuit-breaker task is owned by whichever role creates it.
+-- >>> Confirm SELECT CURRENT_ROLE() = DQ_LAB_OPERATOR01 before CREATE TASK.
 -- ---------------------------------------------------------------------------
 -- Circuit breaker: suspend REPORTING while any Bronze invariant is violated; resume when clean.
 CREATE OR REPLACE TASK TSK_DQ_CIRCUIT_BREAKER
@@ -96,20 +103,20 @@ BEGIN
   SELECT COUNT(*) INTO :bad FROM (
     SELECT expectation_violated
     FROM SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_EXPECTATION_STATUS
-    WHERE table_database = 'GLADSTONE_DQ_LAB' AND table_schema = 'CUST_NIELS'
+    WHERE table_database = 'GLADSTONE_DQ_LAB' AND table_schema = 'CUST_OPERATOR01'
       AND table_name IN ('MEMBERS__MEMBER', 'SYSTEM__PAYMENT', 'SYSTEM__ATTENDANCE')
     QUALIFY ROW_NUMBER() OVER (PARTITION BY table_name, expectation_name ORDER BY measurement_time DESC) = 1)
   WHERE expectation_violated;
   IF (bad > 0) THEN
-    ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_NIELS.REPORTING__ACTIVE_MEMBERS SUSPEND;
-    ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_NIELS.REPORTING__DAILY_REVENUE SUSPEND;
+    ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_OPERATOR01.REPORTING__ACTIVE_MEMBERS SUSPEND;
+    ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_OPERATOR01.REPORTING__DAILY_REVENUE SUSPEND;
     -- SYSTEM$SET_RETURN_VALUE needs a plain variable or literal, not an expression
     msg := 'OPEN: ' || :bad || ' failing Bronze check(s) - REPORTING refresh paused';
     CALL SYSTEM$SET_RETURN_VALUE(:msg);
     RETURN 'OPEN';
   ELSE
-    ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_NIELS.REPORTING__ACTIVE_MEMBERS RESUME;
-    ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_NIELS.REPORTING__DAILY_REVENUE RESUME;
+    ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_OPERATOR01.REPORTING__ACTIVE_MEMBERS RESUME;
+    ALTER DYNAMIC TABLE GLADSTONE_DQ_LAB.CUST_OPERATOR01.REPORTING__DAILY_REVENUE RESUME;
     CALL SYSTEM$SET_RETURN_VALUE('CLOSED: Bronze clean');
     RETURN 'CLOSED';
   END IF;

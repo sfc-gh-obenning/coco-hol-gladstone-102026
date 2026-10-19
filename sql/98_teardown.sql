@@ -34,7 +34,7 @@ DROP RESOURCE MONITOR IF EXISTS DQ_LAB_RM_DEMO;
 -- ---------------------------------------------------------------------------
 CALL GLADSTONE_DQ_LAB.ADMIN.SUSPEND_ALL();
 
--- Put attendees' original DEFAULT_ROLE / DEFAULT_WAREHOUSE back (recorded at setup).
+-- Put back the original DEFAULT_ROLE / DEFAULT_WAREHOUSE of users bound with set_defaults.
 -- Must run before the database is dropped. Skipped if the proc is absent (older install).
 EXECUTE IMMEDIATE $$
 BEGIN
@@ -89,5 +89,5 @@ SHOW ROLES LIKE 'DQ_LAB_%';
 
 -- Note: dropped data stays in Time Travel / Fail-safe for the retention period, then is purged.
 -- The lab data is synthetic. This is the same retention behaviour Bonus B2 (GDPR) discusses.
--- Attendee defaults were restored in step 2. Users bound with set_defaults = false were never changed.
+-- Attendees bound with set_defaults had their defaults restored in step 2; others were never changed.
 -- Temporary walk-in users (if the admin created any) are NOT dropped here: DROP USER <u>; by hand.

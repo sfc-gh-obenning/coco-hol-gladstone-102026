@@ -1,6 +1,6 @@
 import streamlit as st
 
-from components import (render_checkpoint, render_execution_context, render_explanation, render_fallback,
+from components import (fill, render_checkpoint, render_execution_context, render_explanation, render_fallback,
                         render_prompt, render_real_world_examples, render_references, render_session_header,
                         render_snowsight_route, render_technologies_used, render_what_why, render_what_you_built)
 from content import links as L
@@ -14,6 +14,9 @@ render_what_why(
     "Detection alone still lets Nova serve a wrong number. Pausing REPORTING stops further bad batches reaching Nova - stale beats wrong. (With 5-minute checks and 1-minute REPORTING, the first bad batch can already be in; checks triggered on change close that gap.) Notifications on only the critical checks avoid alert fatigue across hundreds of operators.",
 )
 
+st.warning(fill("**Role check before Prompt 4.1:** the circuit-breaker task is owned by the role that creates it. "
+                "Ask CoCo to confirm `SELECT CURRENT_ROLE()` returns **`{ROLE}`** first - a task created under your "
+                "usual role can't suspend your operator's Dynamic Tables."), icon=":material/badge:")
 render_prompt("Prompt 4.1", "Build a circuit breaker", """In {FQ_SCHEMA}, create a task TSK_DQ_CIRCUIT_BREAKER on warehouse DQ_LAB_WH that runs every minute and:
 - reads the latest result per expectation from SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_EXPECTATION_STATUS for tables MEMBERS__MEMBER, SYSTEM__PAYMENT and SYSTEM__ATTENDANCE in schema {SCHEMA}
 - if any is violated: suspends dynamic tables REPORTING__ACTIVE_MEMBERS and REPORTING__DAILY_REVENUE

@@ -57,10 +57,10 @@ for f in ["manifest.yml", "sources/definitions/bronze.sql", "sources/definitions
     with st.expander(f":material/description: `{f}`"):
         st.code(sql_file(f"bonus/dcm_project/{f}"), language="yaml" if f.endswith((".yml", ".yaml")) else "sql")
 st.code("""cd operator_pipeline
-snow dcm create  --target NIELS -c <conn>
-snow dcm plan    --target NIELS -c <conn> --save-output    # read out/plan/plan_result.json
-snow dcm deploy  --target NIELS -c <conn> --alias first-deploy
-snow dcm test    --target NIELS -c <conn>""", language="bash")
+snow dcm create  --target OPERATOR01 -c <conn>
+snow dcm plan    --target OPERATOR01 -c <conn> --save-output    # read out/plan/plan_result.json
+snow dcm deploy  --target OPERATOR01 -c <conn> --alias first-deploy
+snow dcm test    --target OPERATOR01 -c <conn>""", language="bash")
 
 with st.container(border=True):
     st.markdown("##### :material/delete_sweep: Admin: B3 teardown")

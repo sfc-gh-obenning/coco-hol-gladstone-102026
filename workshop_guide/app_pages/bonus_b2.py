@@ -125,7 +125,7 @@ USE SECONDARY ROLES NONE;
 CALL {FQ_SCHEMA}.ERASE_MEMBER('M-01042');
 SELECT COUNT(*) FROM {FQ_SCHEMA}.MEMBERS__MEMBER AT(OFFSET => -120) WHERE member_id = 'M-01042';""")
     with st.expander(":material/description: Full B2 answer key"):
-        st.caption("Replace CUST_NIELS / DQ_LAB_NIELS with your operator.")
+        st.caption("Replace CUST_OPERATOR01 / DQ_LAB_OPERATOR01 with your operator.")
         from components import sql_file
         st.code(sql_file("bonus/B2_answer_key.sql"), language="sql", line_numbers=True)
 

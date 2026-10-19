@@ -1,6 +1,6 @@
 # Gladstone MRM | Data quality HOL | Admin preflight questionnaire
 
-For the Gladstone Snowflake admin. Answering these before the day turns a live setup risk into a 15-minute script run.
+For the Gladstone Snowflake admin. Checking these before the day keeps setup to one script run.
 Items marked **T-5** are needed five working days before the lab; the rest by T-3.
 
 ## 1. Access and identity
@@ -8,8 +8,8 @@ Items marked **T-5** are needed five working days before the lab; the rest by T-
 | # | Question | Why we ask | When |
 |---|---|---|---|
 | 1 | Who will run setup, and do they have ACCOUNTADMIN (or SYSADMIN plus SECURITYADMIN)? | Setup creates roles, a warehouse, a resource monitor and an email integration, and grants account-level privileges | **T-5** |
-| 2 | What are the attendees' exact Snowflake user names (fill in `ATTENDEE_ROSTER.csv`)? | Roles are granted per user name; a typo is the most common setup failure | **T-5** |
-| 3 | Are users provisioned by SCIM? | If SCIM owns user properties, we leave `DEFAULT_ROLE` alone (`"set_defaults": false`) and attendees run `USE ROLE` | T-3 |
+| 2 | What are the attendees' exact Snowflake user names (you'll enter them on the guide's Setup tab)? | Roles are granted per user name; a typo is the most common setup failure | **T-5** |
+| 3 | Are users provisioned by SCIM? | For information only: the lab never changes `DEFAULT_ROLE` or `DEFAULT_WAREHOUSE`, it only grants a role. Attendees run `USE ROLE` themselves | T-3 |
 | 4 | Can we create a temporary user for a walk-in, or is that blocked by policy? | Decides whether walk-ins without a user pair up or get a spare operator | T-3 |
 
 ## 2. CoCo and Cortex readiness (Azure UK South)
@@ -45,21 +45,3 @@ Items marked **T-5** are needed five working days before the lab; the rest by T-
 | 16 | When can we do a 15-minute dry run with one or two attendees at T-1? | Catches login and CoCo issues while there is time to fix them | T-3 |
 | 17 | Are the names `GLADSTONE_DQ_LAB`, `DQ_LAB_*` and `CUST_*` acceptable? Any reserved prefixes? | Avoids a rename on the day | T-3 |
 | 18 | When should teardown run (straight after, or keep for a week of self-study)? Who signs off? | Bounds cost and data retention | T-3 |
-
-## Copy-paste email (T-5)
-
-> Subject: Data quality hands-on lab - six quick questions before setup
->
-> Hi,
->
-> Ahead of the data quality lab on <date>, could you help with six things so setup takes 15 minutes rather than an hour?
->
-> 1. Who will run the setup scripts, and do they have ACCOUNTADMIN?
-> 2. The attendees' exact Snowflake user names (template attached: ATTENDEE_ROSTER.csv).
-> 3. Is CoCo Desktop or CLI installed for each attendee, and who approves installs?
-> 4. The value of `CORTEX_ENABLED_CROSS_REGION`, and whether cross-region inference is allowed.
-> 5. The output of section 6 (pre-flight checks) of `00_admin_setup.sql` - three read-only statements you can run on their own.
-> 6. A verified email address for lab notifications.
->
-> Thanks,
-> <name>

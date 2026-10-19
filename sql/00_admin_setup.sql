@@ -113,5 +113,4 @@ SELECT CURRENT_ACCOUNT(), CURRENT_REGION(), SYSTEM$GET_SNOWFLAKE_PLATFORM_INFO()
 SHOW DATA METRIC FUNCTIONS IN SCHEMA SNOWFLAKE.CORE;          -- confirm DUPLICATE_COUNT, FRESHNESS, ROW_COUNT, REFERENTIAL_INTEGRITY_COUNT, newer DMFs
 SHOW PARAMETERS LIKE 'CORTEX_ENABLED_CROSS_REGION' IN ACCOUNT; -- UK residency (Bonus B2 GDPR)
 
--- Next: run 01_build_template.sql, then 02_lab_procs.sql, then
---   CALL GLADSTONE_DQ_LAB.ADMIN.SETUP_ALL(PARSE_JSON('[{"user":"NJOHANSEN","name":"NIELS"}]'));
+-- Next: 01_build_template.sql, then 02_lab_procs.sql (the generated setup script runs them in order)
