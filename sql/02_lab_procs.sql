@@ -471,7 +471,7 @@ BEGIN
            WHERE status = ''CANCELLED''';
         INSERT INTO GLADSTONE_DQ_LAB.ADMIN.FAULT_LOG (schema_name, fault_code, description, expected_detection)
           VALUES (:sname, :code, 'Cancelled members re-sent as ACTIVE; Nova''s active members disagrees with the verified (paid in 35 days) query',
-                  'Gold check: active_members metric vs vq_active_members gap jumps from ~6% to ~25%; ACCEPTED_VALUES / left_on not null with ACTIVE');
+                  'Gold check: active_members metric vs vq_active_members gap jumps from ~5% to ~20%; ACCEPTED_VALUES / left_on not null with ACTIVE');
     END CASE;
     n := n + 1;
   END FOR;
@@ -540,8 +540,11 @@ WITH latest AS (
          ARRAY_TO_STRING(argument_names, ',') AS columns_checked,
          expectation_name, expectation_expression, expectation_violated,
          value, measurement_time
-  FROM SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_EXPECTATION_STATUS
-  WHERE table_database = 'GLADSTONE_DQ_LAB' AND table_schema LIKE 'CUST\\_%' ESCAPE '\\'
+  FROM SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_EXPECTATION_STATUS s
+  -- SNOWFLAKE.LOCAL keeps results after a schema is dropped: only show this run's operators
+  JOIN GLADSTONE_DQ_LAB.ADMIN.ATTENDEES a
+    ON a.schema_name = s.table_schema AND s.measurement_time >= a.created_at
+  WHERE s.table_database = 'GLADSTONE_DQ_LAB'
   QUALIFY ROW_NUMBER() OVER (PARTITION BY table_schema, table_name, metric_name, expectation_name
                              ORDER BY measurement_time DESC) = 1
 )

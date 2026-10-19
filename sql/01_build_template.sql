@@ -120,7 +120,7 @@ SELECT 'MS-' || SUBSTR(member_id, 3),
        DECODE(MOD(ABS(HASH(member_id, 'p')), 3), 0, 24.99, 1, 34.99, 49.99),
        joined_on,
        left_on,
-       -- Deliberately NOT the same as status: ~6% of ACTIVE members have not paid in > 35 days.
+       -- Deliberately NOT the same as status: ~6% of ACTIVE members have not paid in > 35 days (gap vs status-based count: 78 members, ~5%).
        -- This is the "two definitions of active member" trap.
        CASE WHEN status = 'ACTIVE' AND MOD(ABS(HASH(member_id, 'lp')), 100) < 6
               THEN DATEADD(day, -(40 + MOD(ABS(HASH(member_id, 'd')), 60)), CURRENT_DATE())

@@ -215,7 +215,7 @@ Ask the admin to send you the answer key privately (chat or screenshot) so you c
 <p><strong>Talking points as faults surface</strong> (use the answer key to pick who to call on):</p>
 <ul>
   <li><strong>Merge task stalled:</strong> FRESHNESS fails but Bronze-to-REPORTING lag stays 0. REPORTING isn't behind its source - the <em>source</em> stopped. That's why you need both checks.</li>
-  <li><strong>Status drift:</strong> a semantic-layer problem. The gap between the two active-member numbers moved off ~6%. The agent answers from the verified query (paid in 35 days), the dashboard from status - two screens disagree.</li>
+  <li><strong>Status drift:</strong> a semantic-layer problem. The gap between the two active-member numbers moved off ~5% (78 members) to ~20%. The agent answers from the verified query (paid in 35 days), the dashboard from status - two screens disagree.</li>
   <li><strong>Tenant leak:</strong> not just a data bug - it's a personal-data incident. Row access by operator would hide it immediately (Bonus B2).</li>
   <li><strong>Bifrost replay:</strong> the same batch applied twice - duplicates inflate active members. The batch id in <code>_SYNC_META__MERGE_BATCH</code> is the smoking gun.</li>
 </ul>

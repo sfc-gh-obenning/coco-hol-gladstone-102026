@@ -31,7 +31,7 @@ FROM SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_EXPECTATION_STATUS
 WHERE table_database = 'GLADSTONE_DQ_LAB' AND table_schema = '{SCHEMA}' AND expectation_violated
 QUALIFY ROW_NUMBER() OVER (PARTITION BY table_name, expectation_name ORDER BY measurement_time DESC) = 1;""")
 
-render_prompt("Prompt 3.2", "Check the semantic layer", """Compare the two definitions of active members in {FQ_SCHEMA}.SV_OPERATOR_KPIS: the active_members metric (source status) and the verified query vq_active_members (paid in the last 35 days). How big is the gap now, in members and percent? On clean data it was about 6%. If it has moved, which Bronze change explains it?""")
+render_prompt("Prompt 3.2", "Check the semantic layer", """Compare the two definitions of active members in {FQ_SCHEMA}.SV_OPERATOR_KPIS: the active_members metric (source status) and the verified query vq_active_members (paid in the last 35 days). How big is the gap now, in members and percent? On clean data it was about 5% (78 members). If it has moved, which Bronze change explains it?""")
 render_snowsight_route([
     "**AI & ML » Cortex Analyst** » `SV_OPERATOR_KPIS` » ask *How many active members do we have?* and compare with the `am.active_members` metric.",
 ], sql="""SELECT * FROM SEMANTIC_VIEW({FQ_SCHEMA}.SV_OPERATOR_KPIS
