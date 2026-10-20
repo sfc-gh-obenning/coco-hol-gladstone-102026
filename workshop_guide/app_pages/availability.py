@@ -23,7 +23,9 @@ st.markdown("""
 | Data quality dashboard | Sessions 3, 5 | Snowsight » Governance & security » Data quality |
 | Dynamic Tables, Tasks | All | Created by `SETUP_ATTENDEE` |
 | Semantic views + verified queries | Sessions 1, 3 | Created by `SETUP_ATTENDEE` |
-| Cortex Agents | Stretch | `CREATE AGENT` in an attendee schema |
+| Cortex Agents | Day 2 | `CREATE AGENT` in an attendee schema, with a stored-procedure custom tool |
+| AISQL (AI_SENTIMENT, AI_CLASSIFY, AI_FILTER) | Day 2 | Native in region, or cross-region routing allowed |
+| Snowpark Python procedures + Model Registry | Day 2 | Anaconda terms acknowledged; scikit-learn and snowflake-ml-python available |
 | CoCo Desktop / CLI | All | Sign-in to the account |
 | Budgets, resource monitors | Bonus B1 | B1 setup runs without error |
 | Classification, tag-based masking, row access | Bonus B2 | B2 setup + `SYSTEM$CLASSIFY` |

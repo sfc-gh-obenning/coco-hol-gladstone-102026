@@ -38,7 +38,7 @@ SESSION_PROMPTS = {
     3: ["Prompt 3.1", "Prompt 3.2"],
     4: ["Prompt 4.1", "Prompt 4.2"],
     5: ["Prompt 5.1", "Prompt 5.2"],
-    "S": ["Prompt S.1", "Prompt S.2", "Prompt S.3"],
+    "D2": ["Prompt D2.1", "Prompt D2.2", "Prompt D2.3", "Prompt D2.4", "Prompt D2.5", "Prompt D2.6", "Prompt D2.7"],
     "B1": ["Prompt B1.1", "Prompt B1.2", "Prompt B1.3", "Prompt B1.4"],
     "B2A": ["Prompt B2.1", "Prompt B2.2", "Prompt B2.3", "Prompt B2.4"],
     "B2B": ["Prompt B2.5", "Prompt B2.6", "Prompt B2.7", "Prompt B2.8", "Prompt B2.9"],

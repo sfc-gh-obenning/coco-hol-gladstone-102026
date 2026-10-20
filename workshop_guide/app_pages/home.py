@@ -18,7 +18,7 @@ st.space("small")
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Core lab", "30 min", help="Sessions 1-5")
-c2.metric("Prompts", "10 core", help="Plus stretch and bonus prompts")
+c2.metric("Prompts", "10 core", help="Plus Day 2 and bonus prompts")
 c3.metric("Faults to find", "6", help="One per operator, round-robin")
 c4.metric("Bonus labs", "3", help="Budgets, governance + GDPR, DCM DevOps")
 

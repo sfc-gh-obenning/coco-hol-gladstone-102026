@@ -171,7 +171,7 @@ with setup:
 | Attendee Snowflake **users** exist, with CoCo access | `SETUP_ALL` grants each user their operator role (defaults changed only if you tick the option) |
 | Your **verified email** | Email integration for DQ and budget notifications |
 | A warehouse other than `DQ_LAB_WH` (e.g. `COMPUTE_WH`) | Used by teardown before dropping the lab warehouse |
-| Cortex enabled in the account | Cortex Agents (stretch) and CoCo |
+| Cortex enabled in the account | Cortex Agents and AISQL (Day 2) and CoCo |
 | Bonus B3 only: attendees have Snowflake CLI 3.17+ | `snow dcm` commands |
 """)
 
@@ -219,12 +219,21 @@ with setup:
 - Tell each attendee their operator name. They type it into the guide's sidebar.
 - A user that can't be found is reported under **Check:** in the result. The operator is still built, so fix the name and bind it (instant): `CALL GLADSTONE_DQ_LAB.ADMIN.BIND_USER('<USER>', '<NAME>');`
 - By default binding is a `GRANT ROLE` only: **no user's `DEFAULT_ROLE` or `DEFAULT_WAREHOUSE` is changed**, so attendees switch role themselves at the start (Getting started, step 1). Tick *Set each attendee's default role* to change them instead; teardown restores the originals.
-- Stretch content needs nothing extra. Bonus labs are set up separately, after this script (below).
+- Bonus labs and Day 2: AI/ML are set up separately, after this script (below).
 """)
 
     st.markdown("#### :material/extension: Bonus labs")
     st.markdown("Each bonus has its own setup and teardown. Run setup only for the bonuses you offer - see each bonus page. "
                 "B2 grants its test roles to attendee users at setup time, so re-run `B2_setup.sql` after claiming spares.")
+
+    st.markdown("#### :material/model_training: Day 2: AI/ML")
+    st.markdown("Run after `SETUP_ALL` (and after claiming spares). It builds `MEMBERS__FEEDBACK` in the template and "
+                "copies it into every operator schema - the free text Day 2 needs. Re-run "
+                "`CALL GLADSTONE_DQ_LAB.ADMIN.D2_SETUP_ALL();` for operators added later. Check the pre-flight at the "
+                "bottom: AISQL availability in the region and the Anaconda terms for the training procedure. "
+                "Attendees own their schema, so no extra grants are needed.")
+    render_sql_file("day2/D2_setup.sql")
+    render_sql_file("day2/D2_answer_key.sql", ":material/key: Day 2 answer key (D2.2-D2.7, tested end to end)")
 
 # ── Walk-ins ─────────────────────────────────────────────────────────────────
 with walkins:

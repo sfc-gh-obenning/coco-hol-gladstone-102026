@@ -77,7 +77,7 @@
 <body>
 
 <h1>Gladstone DQ hands-on lab - facilitator guide</h1>
-<p>30-minute core lab, one simulated operator per attendee, then self-paced stretch and bonus labs.</p>
+<p>30-minute core lab, one simulated operator per attendee, then a Day 2 AI/ML lab and self-paced bonus labs.</p>
 <p class="banner"><strong>Internal - do not share with the customer.</strong> Everything you need to run the room is on this page, so you don't have to switch between guide pages while presenting.</p>
 
 <nav><ul>
@@ -104,8 +104,8 @@
 <thead><tr><th>When</th><th>Who</th><th>Do</th></tr></thead>
 <tbody>
 <tr><td>T-5 working days</td><td>You</td><td>Send the admin the email below and the guide URL. Send attendees <code>ATTENDEE_PREP.md</code>.</td></tr>
-<tr><td>T-5</td><td>You</td><td>Review the admin's pre-flight output. If <code>CORTEX_ENABLED_CROSS_REGION</code> is off, CoCo and the agent stretch may not work - agree the fallback (every step has a <em>Do it in Snowsight</em> route).</td></tr>
-<tr><td>T-3</td><td>Admin</td><td>Guide &rarr; <em>Lab setup (admin) &rarr; Setup</em>: enter attendees and email, decide whether to tick <em>Set each attendee's default role</em>, Generate SQL, Run All as ACCOUNTADMIN. Then any bonus setup scripts you're offering. Send you the output of <code>SELECT * FROM GLADSTONE_DQ_LAB.ADMIN.V_ROSTER;</code></td></tr>
+<tr><td>T-5</td><td>You</td><td>Review the admin's pre-flight output. If <code>CORTEX_ENABLED_CROSS_REGION</code> is off, CoCo and the Day 2 AISQL and agent steps may not work - agree the fallback (every step has a <em>Do it in Snowsight</em> route).</td></tr>
+<tr><td>T-3</td><td>Admin</td><td>Guide &rarr; <em>Lab setup (admin) &rarr; Setup</em>: enter attendees and email, decide whether to tick <em>Set each attendee's default role</em>, Generate SQL, Run All as ACCOUNTADMIN. Then any bonus setup scripts you're offering, and <code>sql/day2/D2_setup.sql</code> if running Day 2 (re-run <code>CALL GLADSTONE_DQ_LAB.ADMIN.D2_SETUP_ALL();</code> after claiming spares). Send you the output of <code>SELECT * FROM GLADSTONE_DQ_LAB.ADMIN.V_ROSTER;</code></td></tr>
 <tr><td>T-1</td><td>You + admin</td><td>15-minute dry run with one or two attendees. <code>V_ROSTER</code>: everyone <code>ASSIGNED</code>, recent <code>LAST_SUCCESS_LOGIN</code> (lags up to ~2 h), at least 2 <code>SPARE - free</code>. Walk the admin through the three admin actions below (inject, answer key, suspend).</td></tr>
 <tr><td>T-0, -15 min</td><td>Admin</td><td>Has a worksheet open as ACCOUNTADMIN (or <code>DQ_LAB_ADMIN</code>) with the <em>During the session</em> commands from the guide, and the answer key off the shared screen.</td></tr>
 </tbody></table></div>
@@ -261,7 +261,7 @@ Optionally open Snowsight's data quality dashboard and show <em>Investigate with
 <p class="say">"By Priya's stand-up every operator in the room is green again, and she called the affected operators before they called her. Next: the same checks, deployed to every operator database by DCM - that's the scaling page and Bonus B3."</p>
 <div class="grid">
   <div class="card"><h4>Recap in one breath</h4><p>Map it (CoCo + lineage), monitor it (DMFs + expectations, serverless), diagnose it (results views + failing rows + history), contain it (circuit breaker + notifications), see the fleet (one results store).</p></div>
-  <div class="card"><h4>Where to go next</h4><ul><li><strong>Stretch:</strong> a Nova agent on the semantic view, a scheduled CoCo DQ report, checking a migrated operator.</li><li><strong>Bonus B1</strong> budgets and resource monitors &middot; <strong>B2</strong> governance and GDPR &middot; <strong>B3</strong> DevOps with DCM Projects.</li><li>Share <code>LEAVE_BEHIND.md</code>.</li></ul></div>
+  <div class="card"><h4>Where to go next</h4><ul><li><strong>Day 2: AI/ML:</strong> AISQL feedback features, a registered churn model, a stored-procedure tool, a semantic view and a retention agent.</li><li><strong>Bonus B1</strong> budgets and resource monitors &middot; <strong>B2</strong> governance and GDPR &middot; <strong>B3</strong> DevOps with DCM Projects.</li><li>Share <code>LEAVE_BEHIND.md</code>.</li></ul></div>
 </div>
 <div class="admin"><strong>Admin action - stop compute</strong> straight after (unless the room stays for bonus labs):
 <pre><code>CALL GLADSTONE_DQ_LAB.ADMIN.SUSPEND_ALL();</code></pre></div>

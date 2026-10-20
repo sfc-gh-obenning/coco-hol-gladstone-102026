@@ -21,7 +21,7 @@ st.markdown("""
 
 with st.container(border=True):
     st.markdown("""
-**Faster than the room?** Go to **Stretch**: put a Cortex Agent on top of your semantic view and test it, schedule a CoCo-generated DQ report, or check a migrated operator.
+**Day 2: AI/ML (75-90 min):** use AISQL to turn member feedback into features, train and register a churn model, wrap it in a stored procedure, add a semantic view, and give a Cortex Agent both. It reuses your operator schema from today.
 
 **After the session:** three bonus labs, each with its own setup and teardown - **B1** budgets and resource monitors, **B2** governance plus GDPR, **B3** DevOps with DCM Projects.
 """)

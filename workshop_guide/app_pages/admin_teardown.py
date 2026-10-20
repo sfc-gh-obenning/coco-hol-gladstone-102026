@@ -21,7 +21,7 @@ render_sql_file("98_teardown.sql", ":material/description: 98_teardown.sql", exp
 
 st.markdown("#### :material/layers_clear: Bonus-only teardowns")
 st.caption("Use these to remove one bonus lab and keep the core lab running.")
-for f in ["bonus/B1_teardown.sql", "bonus/B2_teardown.sql", "bonus/B3_teardown.sql"]:
+for f in ["bonus/B1_teardown.sql", "bonus/B2_teardown.sql", "bonus/B3_teardown.sql", "day2/D2_teardown.sql"]:
     render_sql_file(f)
 
 st.markdown("#### :material/rule: After teardown")

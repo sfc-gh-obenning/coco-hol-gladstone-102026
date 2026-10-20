@@ -30,7 +30,7 @@
 - **Read before you approve.** CoCo shows the SQL before running it. You're working in Gladstone's real account, so read it and approve deliberately.
 - **Things will break on purpose.** Partway through, the facilitator injects one realistic fault into every operator (a replayed merge batch, a stalled task, a refund sign flip, and so on). Finding yours is the lab.
 - **Cost is capped.** One shared warehouse with a 20-credit resource monitor. You can't run up a bill.
-- **Availability.** A few features in the stretch and bonus sections are flagged on the *Azure UK South availability* page. The 30-minute core works without them.
+- **Availability.** A few features in the Day 2 and bonus sections are flagged on the *Azure UK South availability* page. The 30-minute core works without them.
 
 ## What to expect
 
@@ -46,4 +46,4 @@
 - **Short waits are normal.** Scheduled checks run every 5 minutes. When you don't want to wait, the guide shows how to evaluate on demand.
 - **CoCo's output varies.** The same prompt can produce slightly different SQL or wording. That's fine - the checkpoint under each step says what "good" looks like.
 - **Falling behind is fine.** Every section has a catch-up box. The facilitator can reset your operator in seconds.
-- **Afterwards:** the guide stays online, with stretch and bonus labs (budgets, GDPR and governance, DevOps with DCM) and a leave-behind summary. Your schema is kept until the admin runs teardown - ask the facilitator when that will be.
+- **Afterwards:** the guide stays online, with the Day 2 AI/ML lab, bonus labs (budgets, GDPR and governance, DevOps with DCM) and a leave-behind summary. Your schema is kept until the admin runs teardown - ask the facilitator when that will be.

@@ -50,8 +50,8 @@ page = st.navigation(
             st.Page("app_pages/session_04.py", title=_title(4, "4. Contain and alert"), icon=":material/shield:"),
             st.Page("app_pages/session_05.py", title=_title(5, "5. Fleet view across operators"), icon=":material/grid_view:"),
         ],
-        "Stretch": [
-            st.Page("app_pages/stretch.py", title=_title("S", "Agents, automation, migration"), icon=":material/rocket:"),
+        "Day 2: AI/ML": [
+            st.Page("app_pages/day2_aiml.py", title=_title("D2", "Predict member churn"), icon=":material/model_training:"),
         ],
         "Bonus labs (after the session)": [
             st.Page("app_pages/bonus_b1.py", title=_title("B1", "B1. Budgets and resource monitors"), icon=":material/savings:"),

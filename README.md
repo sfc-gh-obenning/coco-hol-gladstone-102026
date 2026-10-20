@@ -14,6 +14,7 @@ Plus three bonus labs: budgets and resource monitors, governance and GDPR, DevOp
 | `sql/99_reset_attendee.sql`, `sql/98_teardown.sql` | Reset one attendee; remove everything |
 | `sql/bonus/` | B1 / B2 / B3 setup, answer keys, teardowns; `dcm_project/` |
 | `FACILITATOR_GUIDE.html` | **Internal, not for the customer.** Timeline, admin email, day-of runbook, talk track, faults and fixes |
+| `sql/day2/` | Day 2 AI/ML: feedback data setup, answer key (AISQL, churn model, proc, semantic view, agent), teardown |
 | `ADMIN_PREFLIGHT_QUESTIONNAIRE.md` | 18 questions for the Gladstone admin, plus a T-5 email |
 | `ATTENDEE_PREP.md` | Attendee sheet: things to do, know and expect |
 | `LEAVE_BEHIND.md` | Rollout pattern, GDPR checklist, cost controls |
